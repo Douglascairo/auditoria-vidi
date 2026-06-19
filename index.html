@@ -1,0 +1,1708 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Auditoria VIDI — Sfera Multifranquias</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--blue:#00AEEF;--bd:#0090CC;--bx:#005f8a;--bl:#e0f6fe;--bm:#b3e6fa;--w:#fff;--g:#f0f9ff;--br:#d0edf9;--tx:#0c1a2e;--mu:#4a7896;--er:#dc2626;--ok:#15803d;--wa:#b45309}
+body{font-family:'Segoe UI',sans-serif;background:var(--g);color:var(--tx);font-size:14px;min-height:100vh}
+/* HEADER */
+.hdr{background:var(--w);border-bottom:2px solid var(--blue);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,174,239,.1)}
+.logo{display:flex;align-items:center;gap:8px}
+.logo-ic{width:38px;height:38px;background:var(--blue);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.logo-ic svg{width:22px;height:22px}
+.logo-txt .s1{font-size:18px;font-weight:700;color:var(--blue);line-height:1}
+.logo-txt .s2{font-size:9px;color:var(--blue);letter-spacing:2px;opacity:.8}
+.hdr-right{display:flex;align-items:center;gap:10px}
+.notif-btn{position:relative;background:none;border:none;font-size:20px;cursor:pointer;padding:4px}
+.notif-badge{position:absolute;top:0;right:0;background:var(--er);color:#fff;border-radius:50%;width:16px;height:16px;font-size:10px;display:flex;align-items:center;justify-content:center;font-weight:700}
+.user-chip{font-size:12px;color:var(--mu);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.logout-btn{font-size:12px;color:var(--mu);background:none;border:1px solid var(--br);border-radius:6px;padding:4px 8px;cursor:pointer}
+.logout-btn:hover{background:var(--bl)}
+/* MAIN */
+.main{max-width:760px;margin:0 auto;padding:14px 12px}
+/* CARDS */
+.card{background:var(--w);border:1px solid var(--br);border-radius:10px;padding:16px;margin-bottom:12px}
+.card-title{font-size:14px;font-weight:700;color:var(--bx);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+/* NOTIF PANEL */
+.notif-panel{position:fixed;top:60px;right:10px;width:320px;max-height:420px;overflow-y:auto;background:var(--w);border:1px solid var(--br);border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.15);z-index:200;display:none}
+.notif-panel.open{display:block}
+.notif-item{padding:12px 14px;border-bottom:1px solid var(--br);cursor:pointer}
+.notif-item:hover{background:var(--bl)}
+.notif-item.unread{background:#eff9ff}
+.notif-item .nt{font-size:12px;font-weight:600;color:var(--tx)}
+.notif-item .nd{font-size:11px;color:var(--mu);margin-top:2px}
+.notif-empty{padding:20px;text-align:center;font-size:12px;color:var(--mu)}
+/* LOGIN */
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;background:linear-gradient(135deg,#e0f6fe 0%,#f0f9ff 100%)}
+.login-box{background:var(--w);border-radius:16px;padding:36px 28px;max-width:380px;width:100%;box-shadow:0 8px 40px rgba(0,174,239,.12);text-align:center}
+.login-logo{margin-bottom:20px;display:flex;align-items:center;justify-content:center;gap:10px}
+.login-logo .ic{width:52px;height:52px;background:var(--blue);border-radius:50%;display:flex;align-items:center;justify-content:center}
+.login-logo .ic svg{width:30px;height:30px}
+.login-logo .txt .s1{font-size:26px;font-weight:700;color:var(--blue)}
+.login-logo .txt .s2{font-size:10px;color:var(--blue);letter-spacing:2.5px;opacity:.8}
+.login-title{font-size:16px;font-weight:600;color:var(--bx);margin-bottom:6px}
+.login-sub{font-size:13px;color:var(--mu);margin-bottom:22px;line-height:1.5}
+.inp{width:100%;padding:11px 14px;border:1px solid var(--br);border-radius:8px;font-size:14px;color:var(--tx);outline:none;transition:border .15s;font-family:inherit}
+.inp:focus{border-color:var(--blue);box-shadow:0 0 0 2px rgba(0,174,239,.12)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:11px 20px;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit}
+.btn-prim{background:var(--blue);color:#fff;width:100%;margin-top:12px}
+.btn-prim:hover{background:var(--bd)}
+.btn-prim:disabled{opacity:.5;cursor:not-allowed}
+.btn-sec{background:var(--bl);color:var(--bx);border:1px solid var(--br)}
+.btn-sec:hover{background:var(--bm)}
+.btn-sm{padding:7px 14px;font-size:12px}
+.btn-danger{background:#fee2e2;color:var(--er);border:1px solid #fca5a5}
+/* STATUS CHIPS */
+.chip{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
+.chip-ok{background:#dcfce7;color:#14532d}
+.chip-pend{background:#fef3c7;color:#78350f}
+.chip-rev{background:var(--bl);color:var(--bx)}
+.chip-late{background:#fee2e2;color:#7f1d1d}
+/* LOJA CARDS */
+.loja-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.loja-card{background:var(--w);border:1px solid var(--br);border-radius:10px;padding:14px;cursor:pointer;transition:all .15s}
+.loja-card:hover{border-color:var(--blue);box-shadow:0 2px 12px rgba(0,174,239,.15)}
+.loja-card .lc-name{font-size:14px;font-weight:700;color:var(--tx);margin-bottom:4px}
+.loja-card .lc-cod{font-size:11px;color:var(--mu)}
+.loja-card .lc-city{font-size:11px;color:var(--mu);margin-top:2px}
+.loja-card .lc-status{margin-top:8px}
+/* BANNER PRAZO */
+.dl-banner{border-radius:10px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:12px;border:1px solid}
+.dl-ok{background:#f0fdf4;border-color:#86efac}
+.dl-late{background:#fff5f5;border-color:#fca5a5}
+.dl-warn{background:#fffbeb;border-color:#fcd34d}
+.dl-icon{font-size:22px;flex-shrink:0}
+.dl-body{flex:1;font-size:12px;line-height:1.5;color:var(--mu)}
+.dl-body strong{color:var(--tx)}
+/* FORM SECTIONS */
+.sec-card{background:var(--w);border:1px solid var(--br);border-radius:10px;margin-bottom:10px;overflow:hidden}
+.sec-hdr{padding:10px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;background:linear-gradient(90deg,var(--bl),var(--w));border-bottom:1px solid var(--br)}
+.sec-hdr:hover{background:var(--bl)}
+.sec-title{font-size:13px;font-weight:700;color:var(--bx)}
+.arr{color:var(--blue);transition:transform .2s}
+.q{padding:13px 14px;border-top:1px solid #f0f9ff;display:flex;flex-direction:column;gap:8px}
+.q.ans-sim{background:#f0fdf4}
+.q.ans-nao{background:#fff5f5}
+.q.foto-done{background:#eff6ff}
+.q-meta{font-size:11px;color:var(--mu);display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.q-text{font-size:13px;line-height:1.55}
+.opts{display:flex;gap:6px;flex-wrap:wrap}
+.opt{padding:7px 14px;border:1px solid var(--br);border-radius:20px;font-size:12px;cursor:pointer;background:var(--w);transition:all .12s}
+.opt:hover{border-color:var(--blue);color:var(--blue)}
+.opt.s-sim{background:#dcfce7;border-color:#16a34a;color:#14532d;font-weight:600}
+.opt.s-nao{background:#fee2e2;border-color:var(--er);color:#7f1d1d;font-weight:600}
+.opt.s-na{background:#f9fafb;border-color:#9ca3af;color:#6b7280}
+.obs-ta{width:100%;padding:8px;border:1px solid var(--br);border-radius:8px;font-size:12px;min-height:52px;resize:vertical;font-family:inherit;display:none}
+.obs-ta.vis{display:block}
+/* BADGES */
+.pb{padding:2px 8px;border-radius:6px;font-size:11px;font-weight:600;white-space:nowrap}
+.pb-Gv{background:#fee2e2;color:#7f1d1d}
+.pb-Gr{background:#fef3c7;color:#78350f}
+.pb-Me{background:#fff7ed;color:#92400e}
+.pb-Le{background:#f0fdf4;color:#14532d}
+.pb-Fo{background:var(--bl);color:var(--bx)}
+.tb{padding:2px 7px;border-radius:6px;font-size:11px;white-space:nowrap}
+.tb-TI{background:#dbeafe;color:#1e40af}
+.tb-Ma{background:#dcfce7;color:#14532d}
+.tb-VM{background:#ede9fe;color:#4c1d95}
+.tb-RH{background:#fef3c7;color:#78350f}
+.tb-Op{background:#d1fae5;color:#064e3b}
+/* PHOTO */
+.pz{border:1.5px dashed var(--blue);border-radius:8px;padding:14px;text-align:center;cursor:pointer;background:var(--bl);color:var(--bx)}
+.pz:hover{background:var(--bm)}
+.pz.ok{border-color:#22c55e;background:#f0fdf4;color:#15803d}
+.pz-icon{font-size:24px;margin-bottom:4px}
+.pz-lbl{font-size:13px;font-weight:600}
+.pz-hint{font-size:11px;color:var(--mu);margin-top:2px}
+.ph-grid{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.ph-thumb{position:relative;width:76px;height:76px;border-radius:6px;overflow:hidden;border:1px solid var(--br)}
+.ph-thumb img{width:100%;height:100%;object-fit:cover}
+.ph-rm{position:absolute;top:2px;right:2px;background:rgba(0,0,0,.55);color:#fff;border-radius:50%;width:18px;height:18px;font-size:11px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.fc{font-size:11px;margin-top:4px}
+.fc-ok{color:#15803d;font-weight:600}
+.fc-warn{color:var(--wa);font-weight:600}
+/* STEP BAR */
+.steps{display:flex;align-items:center;gap:4px;margin-bottom:14px;background:var(--w);border:1px solid var(--br);border-radius:10px;padding:10px 14px;overflow-x:auto}
+.step{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--mu);white-space:nowrap}
+.step.on{color:var(--blue);font-weight:600}
+.dot{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+.d-off{background:var(--bl);color:var(--bx)}
+.d-on{background:var(--blue);color:#fff}
+.d-done{background:var(--ok);color:#fff}
+.sline{flex:1;height:1px;background:var(--br);min-width:8px}
+.sline.done{background:var(--ok)}
+/* SUPERVISOR */
+.sup-box{background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:10px;margin-top:6px}
+.sup-lbl{font-size:11px;color:#92400e;font-weight:600;margin-bottom:5px}
+.sup-ta{width:100%;padding:7px;border:1px solid #fcd34d;border-radius:6px;font-size:12px;min-height:48px;resize:vertical;font-family:inherit;background:var(--w)}
+.sup-btns{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}
+.sbtn{padding:4px 10px;border:none;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600}
+.sbtn-ok{background:#dcfce7;color:#14532d}
+.sbtn-nok{background:#fee2e2;color:#7f1d1d}
+/* METRICS */
+.sum-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px;margin-bottom:14px}
+.sum-card{background:var(--w);border:1px solid var(--br);border-radius:8px;padding:12px;text-align:center}
+.sum-val{font-size:24px;font-weight:700}
+.sum-lbl{font-size:11px;color:var(--mu);margin-top:2px}
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl th{background:var(--blue);color:#fff;padding:8px 10px;text-align:left;font-weight:600}
+.tbl td{padding:8px 10px;border-bottom:1px solid var(--br)}
+.tbl tr:hover td{background:var(--bl)}
+/* LATE REASON */
+.late-box{background:#fff5f5;border:1px solid #fca5a5;border-radius:8px;padding:12px;margin-bottom:12px}
+.late-box label{font-size:12px;font-weight:600;color:#991b1b;display:block;margin-bottom:6px}
+.late-box textarea{width:100%;padding:8px;border:1px solid #fca5a5;border-radius:6px;font-size:12px;min-height:58px;resize:vertical;font-family:inherit}
+/* SFERA BTN */
+.sfera-btn{padding:7px 12px;background:var(--blue);color:#fff;border:none;border-radius:7px;font-size:11px;cursor:pointer;font-weight:600;white-space:nowrap}
+.sfera-btn:hover{background:var(--bd)}
+.sfera-btn.ghost{background:var(--w);color:var(--blue);border:1px solid var(--br)}
+/* ALERTS */
+.alert-gv{background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:10px;font-size:12px;color:#7f1d1d;margin-top:4px;display:none}
+.alert-gv.vis{display:flex;gap:6px;align-items:center}
+/* UPLOAD PROGRESS */
+.upload-progress{font-size:12px;color:var(--mu);margin-top:6px;padding:8px;background:var(--bl);border-radius:6px}
+/* MISC */
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.row-end{justify-content:flex-end}
+.mt8{margin-top:8px}
+.mt14{margin-top:14px}
+.txt-mu{color:var(--mu);font-size:12px}
+.txt-sm{font-size:11px;color:var(--mu)}
+.divider{height:1px;background:var(--br);margin:12px 0}
+.score-row{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.score-bar{flex:1;height:8px;background:var(--bl);border-radius:4px;overflow:hidden}
+.score-fill{height:100%;border-radius:4px;background:var(--ok);transition:width .3s}
+.score-num{font-size:24px;font-weight:700;color:var(--bx);min-width:40px;text-align:right}
+input[type=file]{display:none}
+@media(max-width:500px){.loja-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<!-- HEADER (hidden until logged in) -->
+<div class="hdr" id="hdr" style="display:none">
+  <div class="logo">
+    <div class="logo-ic">
+      <svg viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="14" fill="white" opacity=".15"/><path d="M22 10.5C22 10.5 20 8 16 8C12 8 9 10.5 9 13C9 15.5 11 16.5 14 17.5C17 18.5 19.5 19.5 19.5 22C19.5 24.5 17 24 15 24C12 24 10 22 10 22" stroke="white" stroke-width="2.8" stroke-linecap="round" fill="none"/><circle cx="16" cy="8" r="1.5" fill="white"/><circle cx="15" cy="24" r="1.5" fill="white"/></svg>
+    </div>
+    <div class="logo-txt"><div class="s1">sfera</div><div class="s2">multifranquias</div></div>
+  </div>
+  <div class="hdr-right">
+    <button class="notif-btn" onclick="toggleNotif()" title="Notificações">
+      🔔<span class="notif-badge" id="notif-badge" style="display:none">0</span>
+    </button>
+    <span class="user-chip" id="user-chip"></span>
+    <button class="logout-btn" onclick="logout()">Sair</button>
+  </div>
+</div>
+
+<!-- NOTIFICATION PANEL -->
+<div class="notif-panel" id="notif-panel">
+  <div style="padding:10px 14px;font-size:12px;font-weight:700;border-bottom:1px solid var(--br);display:flex;justify-content:space-between;align-items:center">
+    <span>🔔 Notificações</span>
+    <button style="font-size:11px;background:none;border:none;color:var(--blue);cursor:pointer" onclick="markAllRead()">Marcar lidas</button>
+  </div>
+  <div id="notif-list"></div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app"></div>
+
+<script>
+// =====================================================
+// CONFIG — substitua com as chaves do seu projeto Supabase
+// =====================================================
+const SUPABASE_URL = 'https://uhnshyrdtlpdorkmaayt.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVobnNoeXJkdGxwZG9ya21hYXl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1NTE4NzUsImV4cCI6MjA5NzEyNzg3NX0.QvMRvgk5MaHgcwrCw7i2TbNw4A7I_YeChzIZwUt0aWA';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// =====================================================
+// CICLOS 2026
+// =====================================================
+const CICLOS = [
+  {n:1,  ini:'2025-12-26',fim:'2026-01-18'},{n:2, ini:'2026-01-19',fim:'2026-02-08'},
+  {n:3,  ini:'2026-02-09',fim:'2026-03-01'},{n:4, ini:'2026-03-02',fim:'2026-03-22'},
+  {n:5,  ini:'2026-03-23',fim:'2026-04-12'},{n:6, ini:'2026-04-13',fim:'2026-05-10'},
+  {n:7,  ini:'2026-05-11',fim:'2026-05-24'},{n:8, ini:'2026-05-25',fim:'2026-06-14'},
+  {n:9,  ini:'2026-06-15',fim:'2026-06-28'},{n:10,ini:'2026-06-29',fim:'2026-07-19'},
+  {n:11, ini:'2026-07-20',fim:'2026-08-09'},{n:12,ini:'2026-08-10',fim:'2026-08-30'},
+  {n:13, ini:'2026-08-31',fim:'2026-09-20'},{n:14,ini:'2026-09-21',fim:'2026-10-12'},
+  {n:15, ini:'2026-10-13',fim:'2026-11-01'},{n:16,ini:'2026-11-02',fim:'2026-11-29'},
+  {n:17, ini:'2026-11-30',fim:'2026-12-25'},
+];
+
+function parseDt(s){const[y,m,d]=s.split('-');return new Date(+y,+m-1,+d);}
+function fmtDt(s){const[y,m,d]=s.split('-');return`${d}/${m}/${y}`;}
+function fmtDtObj(d){return`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;}
+function addDays(d,n){const r=new Date(d);r.setDate(r.getDate()+n);return r;}
+function daysDiff(a,b){return Math.floor((b-a)/(864e5));}
+
+function getCicloAtual(){
+  const hoje=new Date();hoje.setHours(0,0,0,0);
+  return CICLOS.find(c=>{const i=parseDt(c.ini),f=parseDt(c.fim);f.setHours(23,59,59);return hoje>=i&&hoje<=f;})||CICLOS[8];
+}
+
+const CICLO = getCicloAtual();
+const HOJE = new Date();HOJE.setHours(0,0,0,0);
+const DEADLINE = addDays(parseDt(CICLO.ini), 2); // 3º dia (0,1,2)
+const DENTRO_PRAZO = HOJE <= DEADLINE;
+const DIAS_ATRASO = DENTRO_PRAZO ? 0 : daysDiff(DEADLINE, HOJE);
+const DIAS_RESTANTES = DENTRO_PRAZO ? daysDiff(HOJE, DEADLINE) : 0;
+
+// =====================================================
+// QUESTÕES
+// =====================================================
+const QS=[
+  {id:14, n:'14',  sec:'C',sn:'C — Fachada',      tp:'foto',tx:'Tire 4 fotos amplas da fachada da loja.',min:4},
+  {id:15, n:'15',  sec:'C',sn:'C — Fachada',      tp:'foto',tx:'Tire fotos das laterais da fachada.',min:2},
+  {id:16, n:'16',  sec:'C',sn:'C — Fachada',      tp:'foto',tx:'Luminoso — tire fotos do luminoso na fachada.',min:1},
+  {id:17, n:'17',  sec:'C',sn:'C — Fachada',      tp:'av',tx:'A fachada está dentro do padrão? (letreiro, luminoso ligado e conservação)',pen:'Grave',pts:4,area:'Fachada',pilar:'Arquitetura',tk:'Manutenção'},
+  {id:18, n:'18',  sec:'C',sn:'C — Fachada',      tp:'av',tx:'Fachada e laterais livres de materiais não autorizados?',pen:'Grave',pts:4,area:'Fachada',pilar:'VM',tk:'VM/Franqueado'},
+  {id:19, n:'19',  sec:'C',sn:'C — Fachada',      tp:'av',tx:'O acesso à loja está sem desnível?',pen:'Grave',pts:4,area:'Fachada',pilar:'Arquitetura',tk:'Manutenção'},
+  {id:20, n:'20',  sec:'C',sn:'C — Fachada',      tp:'foto',tx:'Cavalete/suporte cartaz — tire fotos da frente e do verso.',min:2},
+  {id:24, n:'24',  sec:'C',sn:'C — Fachada',      tp:'av',tx:'O cavalete/suporte cartaz está com a comunicação atual e em bom estado?',pen:'Média',pts:2.5,area:'Móveis Solo',pilar:'VM',tk:'VM/Franqueado'},
+  {id:241,n:'24b', sec:'C',sn:'C — Fachada',      tp:'av',tx:'O cavalete está posicionado na área de maior fluxo de clientes?',pen:'Média',pts:2.5,area:'Móveis Solo',pilar:'Arquitetura',tk:'VM/Franqueado'},
+  {id:26, n:'26',  sec:'C',sn:'C — Fachada',      tp:'foto',tx:'Backlight — tire fotos do painel humanização na fachada.',min:1},
+  {id:27, n:'27',  sec:'C',sn:'C — Fachada',      tp:'av',tx:'O backlight está com a comunicação atual e em bom estado?',pen:'Média',pts:2.5,area:'Fachada',pilar:'VM',tk:'VM/Franqueado'},
+  {id:28, n:'28',  sec:'D',sn:'D — Vitrine',      tp:'foto',tx:'Tire fotos amplas da vitrine.',min:2},
+  {id:29, n:'29',  sec:'D',sn:'D — Vitrine',      tp:'foto',tx:'Tire fotos aproximadas da exposição da vitrine.',min:2},
+  {id:31, n:'31',  sec:'D',sn:'D — Vitrine',      tp:'av',tx:'Equipamentos da vitrine no padrão e em bom estado?',pen:'Média',pts:2.5,area:'Vitrine',pilar:'Arquitetura',tk:'Manutenção'},
+  {id:32, n:'32',  sec:'D',sn:'D — Vitrine',      tp:'av',tx:'Materiais de campanha da vitrine correspondem ao ciclo atual?',pen:'Média',pts:2.5,area:'Vitrine',pilar:'VM',tk:'VM/Franqueado'},
+  {id:33, n:'33',  sec:'D',sn:'D — Vitrine',      tp:'foto',tx:'Tela digital — tire fotos da frente e da parte de trás.',min:2},
+  {id:34, n:'34',  sec:'D',sn:'D — Vitrine',      tp:'av',tx:'O conteúdo da vitrine digital corresponde ao ciclo atual?',pen:'Grave',pts:4,area:'Vitrine',pilar:'VM',tk:'TI'},
+  {id:35, n:'35',  sec:'D',sn:'D — Vitrine',      tp:'av',tx:'A vitrine digital possui material de VM na parte de trás?',pen:'Média',pts:2.5,area:'Vitrine',pilar:'VM',tk:'VM/Franqueado'},
+  {id:42, n:'42',  sec:'E',sn:'E — Prat. Feminina',tp:'foto',tx:'2+ fotos amplas da prateleira feminina.',min:2},
+  {id:43, n:'43',  sec:'E',sn:'E — Prat. Feminina',tp:'foto',tx:'Fotos de cada módulo da prateleira feminina.',min:3},
+  {id:45, n:'45',  sec:'F',sn:'F — Prat. Masculina',tp:'foto',tx:'2+ fotos amplas da prateleira masculina.',min:2},
+  {id:46, n:'46',  sec:'F',sn:'F — Prat. Masculina',tp:'foto',tx:'Fotos de cada módulo da prateleira masculina.',min:3},
+  {id:47, n:'47',  sec:'G',sn:'G — Cuide-se Bem',  tp:'foto',tx:'2+ fotos amplas da prateleira Cuide-se Bem.',min:2},
+  {id:48, n:'48',  sec:'G',sn:'G — Cuide-se Bem',  tp:'foto',tx:'Fotos de cada módulo do Cuide-se Bem.',min:3},
+  {id:49, n:'49',  sec:'H',sn:'H — Match',          tp:'foto',tx:'2+ fotos amplas da prateleira Match.',min:2},
+  {id:50, n:'50',  sec:'H',sn:'H — Match',          tp:'foto',tx:'Fotos de cada módulo Match.',min:3},
+  {id:51, n:'51',  sec:'I',sn:'I — Infantil',       tp:'foto',tx:'2+ fotos amplas da prateleira Infantil.',min:2},
+  {id:52, n:'52',  sec:'I',sn:'I — Infantil',       tp:'foto',tx:'Fotos de cada módulo Infantil.',min:3},
+  {id:53, n:'53',  sec:'J',sn:'J — Nativa Spa',     tp:'foto',tx:'2+ fotos amplas Nativa Spa / Botik / Botisun.',min:2},
+  {id:54, n:'54',  sec:'J',sn:'J — Nativa Spa',     tp:'foto',tx:'Fotos de cada módulo Nativa Spa.',min:3},
+  {id:55, n:'55',  sec:'J',sn:'J — Nativa Spa',     tp:'foto',tx:'Display Botik — tire fotos do display.',min:2},
+  {id:56, n:'56',  sec:'J',sn:'J — Nativa Spa',     tp:'av',tx:'Display Botik posicionado conforme planograma e em bom estado?',pen:'Média',pts:2.5,area:'Display',pilar:'Exposição',tk:'VM/Franqueado'},
+  {id:57, n:'57',  sec:'K',sn:'K — Maquiagem',      tp:'foto',tx:'Display Make B — fotos amplas.',min:2},
+  {id:58, n:'58',  sec:'K',sn:'K — Maquiagem',      tp:'foto',tx:'Display Make B — fotos aproximadas dos nichos.',min:3},
+  {id:59, n:'59',  sec:'K',sn:'K — Maquiagem',      tp:'foto',tx:'Display Intense/QDB — fotos amplas.',min:2},
+  {id:60, n:'60',  sec:'K',sn:'K — Maquiagem',      tp:'foto',tx:'Display Intense/QDB — fotos aproximadas dos nichos.',min:3},
+  {id:61, n:'61',  sec:'K',sn:'K — Maquiagem',      tp:'av',tx:'Existem aplicadores descartáveis para teste em maquiagem e fitas olfativas?',pen:'Média',pts:2.5,area:'Display',pilar:'Demonstradores',tk:'VM/Franqueado'},
+  {id:62, n:'62',  sec:'K',sn:'K — Maquiagem',      tp:'av',tx:'Display de maquiagem sem nicho faltando e sem peça quebrada?',pen:'Média',pts:2.5,area:'Display',pilar:'Manutenção',tk:'Manutenção'},
+  {id:63, n:'63',  sec:'K',sn:'K — Maquiagem',      tp:'av',tx:'Materiais de campanha no display de maquiagem correspondem ao ciclo atual?',pen:'Média',pts:2.5,area:'Display',pilar:'VM',tk:'VM/Franqueado'},
+  {id:64, n:'64',  sec:'K',sn:'K — Maquiagem',      tp:'av',tx:'Display de maquiagem com no máximo 15 furos (sem produtos)?',pen:'Média',pts:2.5,area:'Display',pilar:'Ruptura',tk:'VM/Franqueado'},
+  {id:65, n:'65',  sec:'L',sn:'L — Equipe',         tp:'foto',tx:'2 fotos discretas da equipe em atendimento (uniforme visível).',min:2},
+  {id:66, n:'66',  sec:'L',sn:'L — Equipe',         tp:'av',tx:'Todos os colaboradores com uniforme padrão e em bom estado?',pen:'Média',pts:2.5,area:'Uniforme',pilar:'Uniforme',tk:'RH/Franqueado'},
+  {id:67, n:'67',  sec:'L',sn:'L — Equipe',         tp:'av',tx:'A loja possui um celular (Mobshop) por consultor durante o expediente?',pen:'Média',pts:2.5,area:'Ambiente',pilar:'Equipamento',tk:'TI'},
+  {id:68, n:'68',  sec:'M',sn:'M — Ambiente Geral', tp:'foto',tx:'Fotos de todos os lados do interior da loja.',min:4},
+  {id:69, n:'69',  sec:'M',sn:'M — Ambiente Geral', tp:'foto',tx:'Fotos de dentro do lado direito da loja.',min:2},
+  {id:70, n:'70',  sec:'M',sn:'M — Ambiente Geral', tp:'foto',tx:'Fotos de dentro do lado esquerdo da loja.',min:2},
+  {id:71, n:'71',  sec:'M',sn:'M — Ambiente Geral', tp:'foto',tx:'Fotos do fundo até a entrada da loja.',min:2},
+  {id:72, n:'72',  sec:'M',sn:'M — Ambiente Geral', tp:'av',tx:'Todos os móveis, displays e piso estão limpos?',pen:'Média',pts:2.5,area:'Ambiente',pilar:'Limpeza',tk:'Operações'},
+  {id:73, n:'73',  sec:'M',sn:'M — Ambiente Geral', tp:'av',tx:'Destaques e storytelling sem espaço vazio?',pen:'Média',pts:2.5,area:'Prateleira',pilar:'Exposição',tk:'VM/Franqueado'},
+  {id:74, n:'74',  sec:'M',sn:'M — Ambiente Geral', tp:'av',tx:'Nicho de destaque na posição correta em todas as prateleiras?',pen:'Leve',pts:1,area:'Prateleira',pilar:'Arquitetura',tk:'VM/Franqueado'},
+  {id:76, n:'76',  sec:'M',sn:'M — Ambiente Geral', tp:'foto',tx:'Lâmpadas — fotos de todas as lâmpadas na loja.',min:2},
+  {id:77, n:'77',  sec:'M',sn:'M — Ambiente Geral', tp:'av',tx:'Iluminação dentro do padrão? (todas funcionando e spots direcionados)',pen:'Média',pts:2.5,area:'Ambiente',pilar:'Iluminação',tk:'Manutenção'},
+  {id:78, n:'78',  sec:'M',sn:'M — Ambiente Geral', tp:'foto',tx:'Fotos de todas as comunicações com imagens de pessoas.',min:2},
+  {id:79, n:'79',  sec:'M',sn:'M — Ambiente Geral', tp:'av',tx:'Fotos/imagens de modelos são as indicadas para o ciclo vigente?',pen:'Média',pts:2.5,area:'Ambiente',pilar:'VM',tk:'VM/Franqueado'},
+  {id:80, n:'80',  sec:'M',sn:'M — Ambiente Geral', tp:'foto',tx:'Mesa de relacionamento — tire fotos.',min:2},
+  {id:81, n:'81',  sec:'M',sn:'M — Ambiente Geral', tp:'foto',tx:'Móveis solo — fotos de todos (coletor, mesa, torres etc.).',min:4},
+  {id:84, n:'84',  sec:'M',sn:'M — Ambiente Geral', tp:'av',tx:'Todos os móveis solo no padrão e em bom estado?',pen:'Leve',pts:1,area:'Móveis Solo',pilar:'Arquitetura',tk:'Manutenção'},
+  {id:87, n:'87',  sec:'M',sn:'M — Ambiente Geral', tp:'foto',tx:'Fotos do painel de presentes e acessórios.',min:2},
+  {id:88, n:'88',  sec:'M',sn:'M — Ambiente Geral', tp:'av',tx:'Painel de presentes e acessórios sem espaço vazio?',pen:'Leve',pts:1,area:'Prateleira',pilar:'Ruptura',tk:'VM/Franqueado'},
+  {id:89, n:'89',  sec:'M',sn:'M — Ambiente Geral', tp:'foto',tx:'Caixa — tire fotos do caixa da loja.',min:2},
+  {id:90, n:'90',  sec:'M',sn:'M — Ambiente Geral', tp:'av',tx:'Placa imantada e ímãs sobre vendas estão no caixa?',pen:'Média',pts:2.5,area:'Ambiente',pilar:'VM',tk:'VM/Franqueado'},
+  {id:91, n:'91',  sec:'M',sn:'M — Ambiente Geral', tp:'av',tx:'⚠ Adesivo QR CODE Política de Privacidade disponível no caixa?',pen:'Gravíssima',pts:null,area:'Ambiente',pilar:'VM',tk:'VM/Franqueado'},
+  {id:92, n:'92',  sec:'M',sn:'M — Ambiente Geral', tp:'foto',tx:'Empilhamentos — fotos de todos os empilhamentos da loja.',min:2},
+  {id:93, n:'93',  sec:'M',sn:'M — Ambiente Geral', tp:'av',tx:'Empilhamento de acordo com o padrão do Guia de Exposição?',pen:'Média',pts:2.5,area:'Ambiente',pilar:'Exposição',tk:'VM/Franqueado'},
+  {id:97, n:'97',  sec:'M',sn:'M — Ambiente Geral', tp:'foto',tx:'Materiais de campanha — fotos de todos os materiais da loja.',min:4},
+  {id:98, n:'98',  sec:'M',sn:'M — Ambiente Geral', tp:'av',tx:'Todos os materiais de campanha em bom estado?',pen:'Média',pts:2.5,area:'Ambiente',pilar:'VM',tk:'VM/Franqueado'},
+  {id:99, n:'99',  sec:'M',sn:'M — Ambiente Geral', tp:'av',tx:'Materiais de campanha dos móveis solo correspondem ao ciclo atual?',pen:'Média',pts:2.5,area:'Móveis Solo',pilar:'VM',tk:'VM/Franqueado'},
+  {id:100,n:'100', sec:'M',sn:'M — Ambiente Geral', tp:'av',tx:'Materiais de campanha das prateleiras correspondem ao ciclo atual?',pen:'Média',pts:2.5,area:'Prateleira',pilar:'VM',tk:'VM/Franqueado'},
+  {id:106,n:'106', sec:'M',sn:'M — Ambiente Geral', tp:'av',tx:'Produtos para TESTE em maquiagem, cuidados e perfumaria dentro da validade?',pen:'Média',pts:2.5,area:'Prateleira',pilar:'Demonstradores',tk:'VM/Franqueado'},
+  {id:107,n:'107', sec:'M',sn:'M — Ambiente Geral', tp:'foto',tx:'Validade — 10 perfumes disponíveis para teste (foto com data nítida).',min:5},
+  {id:108,n:'108', sec:'M',sn:'M — Ambiente Geral', tp:'foto',tx:'Validade — 10 maquiagens disponíveis para teste (foto com data nítida).',min:5},
+  {id:109,n:'109', sec:'M',sn:'M — Ambiente Geral', tp:'foto',tx:'Validade — 10 produtos de cuidados para teste (foto com data nítida).',min:5},
+  {id:110,n:'110', sec:'M',sn:'M — Ambiente Geral', tp:'av',tx:'⚠ Todos os produtos para VENDA e TESTE estão dentro do prazo de validade?',pen:'Gravíssima',pts:null,area:'Vitrine+Interno',pilar:'Validade',tk:'VM/Franqueado'},
+  {id:111,n:'111', sec:'M',sn:'M — Ambiente Geral', tp:'foto',tx:'Validade (venda) — 10 produtos para venda (foto com data nítida).',min:5},
+  {id:113,n:'113', sec:'M',sn:'M — Ambiente Geral', tp:'av',tx:'Exposição sem espaços vazios (substituição correta em ruptura)?',pen:'Leve',pts:1,area:'Ambiente',pilar:'Ruptura',tk:'VM/Franqueado'},
+  {id:114,n:'114', sec:'M',sn:'M — Ambiente Geral', tp:'av',tx:'Todos os produtos precificados com os precificadores recomendados?',pen:'Grave',pts:4,area:'Ambiente',pilar:'Precificação',tk:'VM/Franqueado'},
+  {id:115,n:'115', sec:'M',sn:'M — Ambiente Geral', tp:'av',tx:'Produtos expostos correspondem ao ciclo atual? (Planograma e Guia de Datas)',pen:'Grave',pts:4,area:'Ambiente',pilar:'Exposição',tk:'VM/Franqueado'},
+  {id:118,n:'118', sec:'M',sn:'M — Ambiente Geral', tp:'av',tx:'Loja SEM comunicação com número de telefone não padrão?',pen:'Grave',pts:4,area:'Ambiente',pilar:'VM',tk:'VM/Franqueado'},
+  {id:119,n:'119', sec:'M',sn:'M — Ambiente Geral', tp:'av',tx:'Placas de subcategorias presentes e posicionadas conforme os produtos?',pen:'Leve',pts:1,area:'Ambiente',pilar:'Arquitetura',tk:'VM/Franqueado'},
+  {id:121,n:'121', sec:'M',sn:'M — Ambiente Geral', tp:'av',tx:'Gôndolas Cabelos e Presentes com kits/combos visíveis e organizados?',pen:'Leve',pts:1,area:'Móveis Solo',pilar:'Exposição',tk:'VM/Franqueado'},
+  {id:123,n:'123', sec:'M',sn:'M — Ambiente Geral', tp:'foto',tx:'Área maquiagem e skin care — fotos da área (espelho e cadeira).',min:2},
+  {id:124,n:'124', sec:'M',sn:'M — Ambiente Geral', tp:'av',tx:'Área de maquiagem e skin care limpa, organizada e com móveis em bom estado?',pen:'Grave',pts:4,area:'Ambiente',pilar:'Experiência',tk:'Manutenção'},
+  {id:125,n:'125', sec:'M',sn:'M — Ambiente Geral', tp:'av',tx:'Torre e coringa de chão visíveis, limpos e com comunicação vigente?',pen:'Leve',pts:1,area:'Móveis Solo',pilar:'VM',tk:'VM/Franqueado'},
+  {id:136,n:'136', sec:'M',sn:'M — Ambiente Geral', tp:'foto',tx:'Logística reversa — fotos de 5 caixas de armazenamento (parte interna).',min:5},
+];
+
+// =====================================================
+// APP STATE
+// =====================================================
+let APP = {
+  session: null,
+  profile: null,
+  lojas: [],
+  lojaAtual: null,
+  formulario: null,
+  ans: {}, obs: {}, supC: {}, sup: {},
+  lateReason: '',
+  fillStart: null,
+  reviewStart: null,
+  screen: 'login',
+  notifs: [],
+  notifOpen: false,
+};
+const PHOTOS = {}; // qid -> File[]
+const ADJPHOTOS = {}; // qid -> File[] (fotos de comprovação dos ajustes da gerente)
+
+// =====================================================
+// UTILITIES
+// =====================================================
+const $ = id => document.getElementById(id);
+function render(html){ $('app').innerHTML = html; }
+function penCls(p){return p==='Gravíssima'?'pb-Gv':p==='Grave'?'pb-Gr':p==='Média'?'pb-Me':'pb-Le';}
+function tkCls(t){return t==='TI'?'tb-TI':t==='Manutenção'?'tb-Ma':t==='RH/Franqueado'?'tb-RH':t==='Operações'?'tb-Op':'tb-VM';}
+function fmtDur(sec){if(!sec)return'—';const m=Math.floor(sec/60),s=sec%60;return m?`${m}min ${s}s`:`${s}s`;}
+function cicloLabel(){return`Ciclo ${String(CICLO.n).padStart(2,'0')} (${fmtDt(CICLO.ini)} → ${fmtDt(CICLO.fim)})`;}
+function deadlineBanner(){
+  if(DENTRO_PRAZO&&DIAS_RESTANTES===0)return`<div class="dl-banner dl-warn"><div class="dl-icon">⏰</div><div class="dl-body"><strong>Último dia do prazo!</strong><br>${cicloLabel()} — prazo: <strong>${fmtDtObj(DEADLINE)}</strong></div></div>`;
+  if(DENTRO_PRAZO)return`<div class="dl-banner dl-ok"><div class="dl-icon">✅</div><div class="dl-body"><strong>Dentro do prazo</strong> — ${DIAS_RESTANTES} dia(s) restante(s)<br>${cicloLabel()} — prazo: <strong>${fmtDtObj(DEADLINE)}</strong></div></div>`;
+  return`<div class="dl-banner dl-late"><div class="dl-icon">🔴</div><div class="dl-body"><strong>${DIAS_ATRASO} dia(s) de atraso</strong><br>${cicloLabel()} — prazo era: <strong>${fmtDtObj(DEADLINE)}</strong></div></div>`;
+}
+
+// =====================================================
+// AUTH
+// =====================================================
+async function initAuth(){
+  // Listener para login de supervisora/coordenador (com senha)
+  sb.auth.onAuthStateChange(async(event,sess)=>{
+    if(sess && sess.user.email){
+      APP.session = sess;
+      await loadProfile();
+      route(); pollNotifs();
+    }
+  });
+
+  const {data:{session}} = await sb.auth.getSession();
+
+  // Sessão anônima persistida: restaurar perfil salvo
+  if(session && !session.user.email){
+    const saved = localStorage.getItem('vidi_profile');
+    if(saved){
+      APP.session = session;
+      APP.profile = JSON.parse(saved);
+      $('hdr').style.display='flex';
+      $('user-chip').textContent = APP.profile.nome||APP.profile.email;
+      route(); pollNotifs(); return;
+    }
+    await sb.auth.signOut();
+    showLogin(); return;
+  }
+  // Sessão real (supervisora/coordenador)
+  if(session && session.user.email){
+    APP.session = session;
+    await loadProfile();
+    route(); pollNotifs();
+  } else {
+    showLogin();
+  }
+}
+
+async function loadProfile(){
+  const uid = APP.session.user.id;
+  const email = (APP.session.user.email||'').toLowerCase();
+  let p = null;
+
+  // 1. É supervisora? (prioridade — sobrescreve perfil criado por gatilho)
+  const {data:sup} = await sb.from('supervisoras').select('*').eq('email',email).single();
+  if(sup){
+    await sb.from('profiles').upsert({id:uid,email,role:'supervisora',nome:sup.nome,supervisora_id:sup.id});
+    ({data:p} = await sb.from('profiles').select('*').eq('id',uid).single());
+  }
+
+  // 2. Perfil existente pelo ID (coordenador, ou gerente já criado)
+  if(!p){
+    ({data:p} = await sb.from('profiles').select('*').eq('id',uid).single());
+  }
+
+  // 3. Fallback: cria como gerente
+  if(!p){
+    await sb.from('profiles').insert({id:uid,email,role:'gerente'});
+    ({data:p} = await sb.from('profiles').select('*').eq('id',uid).single());
+  }
+
+  APP.profile = p;
+  localStorage.setItem('vidi_profile', JSON.stringify(p));
+  $('hdr').style.display='flex';
+  $('user-chip').textContent = p.nome||p.email;
+}
+
+async function doLogin(){
+  const email = $('login-email').value.trim().toLowerCase();
+  if(!email){alert('Digite seu email.');return;}
+  const btn=$('login-btn');btn.disabled=true;btn.textContent='Verificando…';
+
+  // 1. Verifica se é gerente de loja
+  const {data:loja} = await sb.from('lojas').select('*').eq('email',email).single();
+  if(loja){
+    // Login anônimo para gerente
+    const {data:{session},error} = await sb.auth.signInAnonymously();
+    if(error){btn.disabled=false;btn.textContent='Entrar';alert('Erro: '+error.message);return;}
+    APP.session = session;
+    const perfil = {id:session.user.id, email, role:'gerente', nome:loja.nome,
+      loja_id:loja.id, loja_nome:loja.nome, loja_cod:loja.cod,
+      loja_cidade:loja.cidade, supervisora_id:loja.supervisora_id};
+    APP.profile = perfil;
+    localStorage.setItem('vidi_profile', JSON.stringify(perfil));
+    // Garante entrada em gerente_lojas
+    await sb.from('gerente_lojas').delete().eq('gerente_id',session.user.id);
+    await sb.from('gerente_lojas').insert({gerente_id:session.user.id, loja_id:loja.id});
+    $('hdr').style.display='flex';
+    $('user-chip').textContent = loja.nome;
+    route(); pollNotifs(); return;
+  }
+
+  // 2. Verifica se é supervisora (tabela supervisoras)
+  const {data:sup} = await sb.from('supervisoras').select('*').eq('email',email).single();
+  if(sup){
+    btn.disabled=false; btn.textContent='Entrar';
+    showLoginComSenha(email); return;
+  }
+
+  // 3. Verifica se é coordenador (tabela profiles)
+  const {data:prof} = await sb.from('profiles').select('*').eq('email',email).single();
+  if(prof){
+    btn.disabled=false; btn.textContent='Entrar';
+    showLoginComSenha(email); return;
+  }
+
+  btn.disabled=false; btn.textContent='Entrar';
+  alert('Email não encontrado. Verifique e tente novamente.');
+}
+
+function showLoginComSenha(email){
+  const logo=`<div class="ic"><svg viewBox="0 0 32 32" fill="none"><path d="M22 10.5C22 10.5 20 8 16 8C12 8 9 10.5 9 13C9 15.5 11 16.5 14 17.5C17 18.5 19.5 19.5 19.5 22C19.5 24.5 17 24 15 24C12 24 10 22 10 22" stroke="white" stroke-width="2.8" stroke-linecap="round" fill="none"/></svg></div>`;
+  render(`<div class="login-wrap"><div class="login-box">
+    <div class="login-logo">${logo}<div class="txt"><div class="s1">sfera</div><div class="s2">multifranquias</div></div></div>
+    <div class="login-title">Auditoria VIDI</div>
+    <div class="login-sub" style="word-break:break-all;margin-bottom:4px">${email}</div>
+    <p style="font-size:12px;color:var(--mu);margin-bottom:12px">Primeiro acesso? Crie sua senha abaixo.</p>
+    <input class="inp" id="login-senha" type="password" placeholder="Criar ou digitar senha" autocomplete="new-password" style="margin-top:4px">
+    <input class="inp" id="login-conf" type="password" placeholder="Confirmar senha" autocomplete="new-password" style="margin-top:8px">
+    <button class="btn btn-prim" id="login-btn2" onclick="doLoginComSenha('${email}')" style="margin-top:12px">Entrar</button>
+    <button class="btn btn-sec" onclick="showLogin()" style="margin-top:8px;width:100%">← Trocar email</button>
+  </div></div>`);
+  setTimeout(()=>$('login-senha').focus(),100);
+}
+
+async function doLoginComSenha(email){
+  const senha=$('login-senha').value;
+  const conf=$('login-conf').value;
+  if(!senha||senha.length<6){alert('A senha deve ter pelo menos 6 caracteres.');return;}
+  if(senha!==conf){alert('As senhas não coincidem. Digite igual nos dois campos.');return;}
+  const btn=$('login-btn2');btn.disabled=true;btn.textContent='Entrando…';
+
+  const showErr=(e)=>{btn.disabled=false;btn.textContent='Entrar';
+    const msg=(e&&(e.message||e.error_description||e.msg))||JSON.stringify(e)||'desconhecido';
+    alert('Erro: '+msg);};
+
+  // Tenta login primeiro (usuária já tem senha)
+  const {error:errLogin}=await sb.auth.signInWithPassword({email,password:senha});
+  if(!errLogin) return; // sucesso — onAuthStateChange vai rotear
+
+  const msgL=(errLogin.message||'').toLowerCase();
+  // Se falhou por credencial inválida, tenta criar conta (primeiro acesso)
+  if(msgL.includes('invalid')){
+    const {data:sd,error:errSignUp}=await sb.auth.signUp({email,password:senha});
+    if(errSignUp){
+      if((errSignUp.message||'').toLowerCase().includes('already')){
+        showErr({message:'Já existe uma senha cadastrada para este email. Digite a senha correta.'});
+      } else {
+        showErr(errSignUp);
+      }
+      return;
+    }
+    // signUp ok — se já veio sessão, onAuthStateChange roteia. Senão, faz login.
+    if(sd&&sd.session) return;
+    const {error:e2}=await sb.auth.signInWithPassword({email,password:senha});
+    if(e2){showErr({message:'Conta criada, mas o login falhou. Tente entrar novamente.'});return;}
+    return;
+  }
+  showErr(errLogin);
+}
+
+async function logout(){
+  await sb.auth.signOut();
+  localStorage.removeItem('vidi_profile');
+  APP={...APP,session:null,profile:null,lojas:[],screen:'login'};
+  $('hdr').style.display='none';
+  showLogin();
+}
+
+function showLogin(){
+  render(`<div class="login-wrap"><div class="login-box">
+    <div class="login-logo">
+      <div class="ic"><svg viewBox="0 0 32 32" fill="none"><path d="M22 10.5C22 10.5 20 8 16 8C12 8 9 10.5 9 13C9 15.5 11 16.5 14 17.5C17 18.5 19.5 19.5 19.5 22C19.5 24.5 17 24 15 24C12 24 10 22 10 22" stroke="white" stroke-width="2.8" stroke-linecap="round" fill="none"/></svg></div>
+      <div class="txt"><div class="s1">sfera</div><div class="s2">multifranquias</div></div>
+    </div>
+    <div class="login-title">Auditoria VIDI</div>
+    <div class="login-sub">Digite seu email para acessar.</div>
+    <input class="inp" id="login-email" type="email" placeholder="seu.email@franquiasboticario.com" autocomplete="email">
+    <button class="btn btn-prim" id="login-btn" onclick="doLogin()" style="margin-top:12px">Entrar</button>
+  </div></div>`);
+  $('login-email').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+  setTimeout(()=>$('login-email').focus(),100);
+}
+window.doLogin=doLogin;
+window.doLoginComSenha=doLoginComSenha;
+window.showLoginComSenha=showLoginComSenha;
+
+// =====================================================
+// ROUTING
+// =====================================================
+async function route(){
+  if(!APP.profile)return;
+  const role = APP.profile.role;
+  if(role==='coordenador') await showCoordDashboard();
+  else if(role==='supervisora') await showSupHome();
+  else await showGerenteHome();
+}
+
+// =====================================================
+// NOTIFICATIONS
+// =====================================================
+async function pollNotifs(){
+  if(!APP.profile)return;
+  const {data} = await sb.from('notificacoes').select('*').eq('para_email',APP.profile.email).order('created_at',{ascending:false}).limit(20);
+  APP.notifs = data||[];
+  const unread = APP.notifs.filter(n=>!n.lida).length;
+  const badge = $('notif-badge');
+  if(badge){badge.style.display=unread?'flex':'none';badge.textContent=unread;}
+  renderNotifList();
+  setTimeout(pollNotifs,30000);
+}
+
+function renderNotifList(){
+  const list = $('notif-list');if(!list)return;
+  if(!APP.notifs.length){list.innerHTML=`<div class="notif-empty">Nenhuma notificação</div>`;return;}
+  list.innerHTML = APP.notifs.map(n=>`
+    <div class="notif-item ${n.lida?'':'unread'}" onclick="openNotif('${n.id}','${n.formulario_id||''}')">
+      <div class="nt">${n.titulo||n.tipo}</div>
+      <div class="nd">${n.mensagem||''}</div>
+      <div class="nd" style="margin-top:3px">${new Date(n.created_at).toLocaleString('pt-BR')}</div>
+    </div>`).join('');
+}
+
+function toggleNotif(){APP.notifOpen=!APP.notifOpen;$('notif-panel').className='notif-panel'+(APP.notifOpen?' open':'');}
+async function markAllRead(){
+  await sb.from('notificacoes').update({lida:true}).eq('para_email',APP.profile.email);
+  APP.notifs.forEach(n=>n.lida=true);
+  const badge=$('notif-badge');if(badge)badge.style.display='none';
+  renderNotifList();
+}
+async function openNotif(id,formId){
+  await sb.from('notificacoes').update({lida:true}).eq('id',id);
+  toggleNotif();
+  if(!formId)return;
+  const role=APP.profile.role;
+  if(role==='gerente'){
+    // Abre tela de ajustes se for o caso, senão home
+    const {data:f}=await sb.from('formularios').select('status').eq('id',formId).single();
+    if(f&&f.status==='ajustes_solicitados')await showGerenteAdjust(formId);
+    else await showGerenteHome();
+  } else {
+    await showSupReview(formId);
+  }
+}
+
+async function createNotif(paraEmail,tipo,titulo,mensagem,formId){
+  await sb.from('notificacoes').insert({para_email:paraEmail,de_nome:APP.profile.nome||APP.profile.email,tipo,titulo,mensagem,formulario_id:formId});
+}
+
+// Visualizador de foto em tela cheia (lightbox)
+function openPhoto(url){
+  let ov=document.getElementById('photo-lightbox');
+  if(!ov){
+    ov=document.createElement('div');
+    ov.id='photo-lightbox';
+    ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;cursor:zoom-out';
+    ov.onclick=()=>{ov.style.display='none';};
+    document.body.appendChild(ov);
+  }
+  ov.innerHTML=`<img src="${url}" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:8px">
+    <div style="position:absolute;top:16px;right:20px;color:#fff;font-size:34px;line-height:1;cursor:pointer">×</div>`;
+  ov.style.display='flex';
+}
+window.openPhoto=openPhoto;
+
+// =====================================================
+// GERENTE HOME
+// =====================================================
+async function showGerenteHome(){
+  render(`<div class="main"><div class="card"><div style="text-align:center;padding:20px;font-size:24px">⏳</div><div style="text-align:center;font-size:13px;color:var(--mu)">Carregando…</div></div></div>`);
+  // Se gerente anônimo, usa loja_id direto do perfil
+  let lojaIds=[];
+  if(APP.profile.loja_id){
+    lojaIds=[APP.profile.loja_id];
+  } else {
+    const uid = APP.profile.id;
+    const {data:gl} = await sb.from('gerente_lojas').select('loja_id').eq('gerente_id',uid);
+    lojaIds = (gl||[]).map(r=>r.loja_id);
+  }
+  let lojas=[];
+  if(lojaIds.length){
+    const {data:ls} = await sb.from('lojas').select('*').in('id',lojaIds);
+    lojas = ls||[];
+  }
+  APP.lojas = lojas;
+  // carrega formulários do ciclo atual
+  let forms=[];
+  if(lojaIds.length){
+    const {data:fs} = await sb.from('formularios').select('*').in('loja_id',lojaIds).eq('ciclo',CICLO.n);
+    forms = fs||[];
+  }
+  const formByLoja = {};(forms||[]).forEach(f=>formByLoja[f.loja_id]=f);
+
+  const lojaCards = lojas.length===0
+    ? `<div style="text-align:center;padding:30px;font-size:13px;color:var(--mu)">Nenhuma loja atribuída à sua conta.<br>Fale com a supervisora ou coordenador.</div>`
+    : `<div class="loja-grid">${lojas.map(l=>{
+        const f=formByLoja[l.id];
+        const st=f?f.status:null;
+        const statusChip = !f?`<span class="chip chip-pend">⏳ Não preenchido</span>`
+          :st==='revisado'?`<span class="chip chip-rev">✅ Concluído — ${f.score}pts</span>`
+          :st==='enviado'?`<span class="chip chip-ok">📤 Aguardando revisão</span>`
+          :st==='reenviado'?`<span class="chip chip-ok" style="background:#dbeafe;color:#1e40af">↻ Reenviado — aguarda supervisora</span>`
+          :st==='ajustes_solicitados'?`<span class="chip" style="background:#fed7aa;color:#9a3412">🔧 Ajustes solicitados</span>`
+          :`<span class="chip chip-pend">📝 Rascunho</span>`;
+        const onclick = st==='ajustes_solicitados'?`showGerenteAdjust('${f.id}')`:`startForm('${l.id}','${f?f.id:''}')`;
+        return`<div class="loja-card" onclick="${onclick}">
+          <div class="lc-name">${l.nome}</div>
+          <div class="lc-cod">Cód ${l.cod}</div>
+          <div class="lc-city">${l.cidade} — ${l.estado}</div>
+          <div class="lc-status">${statusChip}</div>
+          ${st==='ajustes_solicitados'?`<div style="font-size:11px;color:#9a3412;margin-top:4px;font-weight:600">👆 Toque para ver os ajustes e corrigir</div>`:''}
+        </div>`;
+      }).join('')}</div>`;
+
+  render(`<div class="main">
+    ${deadlineBanner()}
+    <div class="card">
+      <div class="card-title">📋 Minhas lojas — ${cicloLabel()}</div>
+      ${lojaCards}
+    </div>
+    ${forms.filter(f=>f.status==='revisado').length?`<div class="card">
+      <div class="card-title">💬 Feedbacks da supervisora</div>
+      ${forms.filter(f=>f.status==='revisado').map(f=>{
+        const l=lojas.find(x=>x.id===f.loja_id);
+        return`<div style="padding:10px 0;border-bottom:1px solid var(--br)">
+          <div style="font-size:13px;font-weight:600">${l?l.nome:'Loja'} — <span style="color:${f.score>=80?'#15803d':f.score>=60?'#d97706':'#dc2626'}">${f.score} pts</span></div>
+          ${f.is_late?`<div style="font-size:11px;color:#991b1b;margin-top:2px">Preenchido com ${f.dias_atraso} dia(s) de atraso — ${f.sup_julgamento_atraso||'pendente análise'}</div>`:''}
+          ${f.sup_comentario_atraso?`<div style="font-size:12px;color:#4c1d95;margin-top:4px;background:#ede9fe;padding:6px 8px;border-radius:6px">💬 ${f.sup_comentario_atraso}</div>`:''}
+        </div>`;}).join('')}
+    </div>`:''}
+  </div>`);
+}
+
+// =====================================================
+// GERENTE FORM
+// =====================================================
+async function startForm(lojaId, formId){
+  const loja = APP.lojas.find(l=>l.id===lojaId);
+  APP.lojaAtual = loja;
+  APP.ans={};APP.obs={};APP.coment={};APP.chamado={};APP.lateReason='';APP.percepcao='';APP.ausentes=[];APP.nomeGerente=APP.profile.nome_gerente||'';APP.fillStart=new Date();
+  Object.keys(PHOTOS).forEach(k=>delete PHOTOS[k]);
+
+  if(formId){
+    // carrega rascunho existente
+    const {data:f} = await sb.from('formularios').select('*').eq('id',formId).single();
+    APP.formulario = f;
+    if(f&&f.status!=='rascunho'){
+      alert(f.status==='enviado'?'Este formulário já foi enviado para revisão.':'Este formulário já foi revisado.');
+      return;
+    }
+    if(f){
+      const {data:rs} = await sb.from('respostas').select('*').eq('formulario_id',formId);
+      (rs||[]).forEach(r=>{APP.ans[r.questao_id]=r.resposta;APP.obs[r.questao_id]=r.obs||'';APP.coment[r.questao_id]=r.comentario||'';APP.chamado[r.questao_id]=r.chamado||'';});
+    }
+  } else {
+    // cria novo formulário como rascunho
+    const {data:supRow} = await sb.from('lojas').select('supervisora_id').eq('id',lojaId).single();
+    const {data:newF,error} = await sb.from('formularios').insert({
+      loja_id:lojaId,ciclo:CICLO.n,ciclo_ini:CICLO.ini,ciclo_fim:CICLO.fim,
+      prazo:DEADLINE.toISOString().split('T')[0],gerente_id:APP.profile.id,
+      supervisora_id:supRow?.supervisora_id,
+      is_late:!DENTRO_PRAZO,dias_atraso:DIAS_ATRASO,
+      fill_start:new Date().toISOString(),status:'rascunho'
+    }).select().single();
+    if(error){alert('Erro ao criar formulário: '+error.message);return;}
+    APP.formulario = newF;
+  }
+  renderForm();
+}
+
+function renderForm(){
+  const loja = APP.lojaAtual;
+  const secs={};
+  QS.forEach(q=>{if(!secs[q.sec])secs[q.sec]={sn:q.sn,qs:[]};secs[q.sec].qs.push(q);});
+
+  const lateBox = !DENTRO_PRAZO?`<div class="late-box">
+    <label>⚠️ Fora do prazo (${DIAS_ATRASO} dia(s)) — informe o motivo:</label>
+    <textarea id="late-reason" placeholder="Ex: aguardando planograma, loja em reforma…" oninput="APP.lateReason=this.value">${APP.lateReason}</textarea>
+  </div>`:'';
+
+  const secsHtml = Object.entries(secs).map(([k,s])=>`
+    <div class="sec-card">
+      <div class="sec-hdr" onclick="toggleSec('sb-${k}',this)">
+        <span class="sec-title">${s.sn}</span>
+        <span class="arr" id="arr-${k}">▾</span>
+      </div>
+      <div id="sb-${k}">${s.qs.map(buildQ).join('')}</div>
+    </div>`).join('');
+
+  render(`<div class="main">
+    <div class="steps">
+      <div class="step on"><div class="dot d-on" id="d1">1</div> Preencher</div>
+      <div class="sline" id="l1"></div>
+      <div class="step"><div class="dot d-off" id="d2">2</div> Revisão</div>
+      <div class="sline" id="l2"></div>
+      <div class="step"><div class="dot d-off" id="d3">3</div> Plano</div>
+    </div>
+    <div class="card" style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div>
+          <div style="font-size:15px;font-weight:700">${loja.nome}</div>
+          <div class="txt-sm">Cód ${loja.cod} · ${loja.cidade}/${loja.estado} · ${cicloLabel()}</div>
+        </div>
+        <div class="score-row" style="margin:0;min-width:160px">
+          <div class="score-bar"><div class="score-fill" id="sf" style="width:0%"></div></div>
+          <div class="score-num" id="sv">—</div><span class="txt-sm">/ 100</span>
+        </div>
+      </div>
+    </div>
+    ${deadlineBanner()}
+    <div class="card" style="margin-bottom:10px">
+      <div class="card-title">👤 Identificação da gerente</div>
+      <input class="inp" id="inp-nome-gerente" type="text" placeholder="Nome e sobrenome da gerente" value="${APP.nomeGerente||''}" oninput="APP.nomeGerente=this.value" style="margin-top:4px">
+    </div>
+    ${lateBox}
+    ${secsHtml}
+    <div class="card" style="margin-top:8px">
+      <div class="card-title">💬 Percepção geral da troca de ciclo</div>
+      <textarea maxlength="500" style="width:100%;height:90px;font-size:13px;padding:8px;border:1px solid var(--br);border-radius:6px;resize:none;font-family:inherit;box-sizing:border-box" placeholder="Descreva sua percepção geral sobre esta troca de ciclo (máx. 500 caracteres)…" oninput="APP.percepcao=this.value">${APP.percepcao||''}</textarea>
+      <div style="font-size:11px;color:var(--mu);text-align:right;margin-top:2px" id="pc-count">${(APP.percepcao||'').length}/500</div>
+    </div>
+    <div class="card" style="margin-top:8px">
+      <div class="card-title">👥 Colaboradores ausentes na troca de ciclo</div>
+      <div style="font-size:12px;color:var(--mu);margin-bottom:8px">Todos devem participar. Informe quem faltou e o motivo.</div>
+      <div id="ausentes-list">${renderAusentesList()}</div>
+      <button class="btn btn-sec" style="margin-top:8px;font-size:13px" onclick="addAusente()">+ Adicionar colaborador</button>
+    </div>
+    <div style="display:flex;justify-content:space-between;gap:8px;margin-top:8px;flex-wrap:wrap">
+      <button class="btn btn-sec" onclick="showGerenteHome()">← Voltar</button>
+      <button class="btn btn-prim" onclick="submitForm()">📤 Enviar para supervisora</button>
+    </div>
+  </div>`);
+  updScore();
+}
+
+function buildQ(q){return q.tp==='foto'?buildFotoQ(q):buildAvQ(q);}
+
+function buildFotoQ(q){
+  const cnt=(PHOTOS[q.id]||[]).length;
+  return`<div class="q${cnt?' foto-done':''}" id="q-${q.id}">
+    <div class="q-meta"><span class="pb pb-Fo">📷 FOTO</span> Pergunta ${q.n}</div>
+    <div class="q-text">${q.tx}</div>
+    <div class="pz${cnt?' ok':''}" id="pz-${q.id}" onclick="$('fi-${q.id}').click()">
+      <div class="pz-icon">${cnt?'✅':'📷'}</div>
+      <div class="pz-lbl">Toque para tirar foto / selecionar arquivo</div>
+      <div class="pz-hint">Mínimo: ${q.min} foto(s)</div>
+      <input type="file" id="fi-${q.id}" multiple accept="image/*" capture="environment" onchange="handlePhotos(this,${q.id},${q.min})">
+    </div>
+    <div class="ph-grid" id="prev-${q.id}"></div>
+    <div class="fc" id="fc-${q.id}"><span class="fc-${cnt>=q.min?'ok':'warn'}">${cnt} / ${q.min} fotos ${cnt>=q.min?'✓':'— mínimo necessário'}</span></div>
+  </div>`;
+}
+
+function buildAvQ(q){
+  const a=APP.ans[q.id]||'';
+  const pc=q.pen?penCls(q.pen):'';
+  return`<div class="q${a==='sim'?' ans-sim':a==='nao'?' ans-nao':''}" id="q-${q.id}">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+      <div style="flex:1">
+        <div class="q-meta">Pergunta ${q.n}${q.area?' · '+q.area:''}${q.pilar?' · '+q.pilar:''}</div>
+        <div class="q-text">${q.tx}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
+        ${q.pen?`<span class="pb ${pc}">${q.pen}${q.pts?' · '+q.pts+'pts':' · CRÍTICO'}</span>`:''}
+        ${q.tk?`<span class="tb ${tkCls(q.tk)}">${q.tk}</span>`:''}
+      </div>
+    </div>
+    <div class="opts">
+      <button class="opt${a==='sim'?' s-sim':''}" onclick="setAns(${q.id},'sim',this)" id="os-${q.id}">✓ Sim</button>
+      <button class="opt${a==='nao'?' s-nao':''}" onclick="setAns(${q.id},'nao',this)" id="on-${q.id}">✗ Não</button>
+      <button class="opt${a==='na'?' s-na':''}" onclick="setAns(${q.id},'na',this)" id="ona-${q.id}">— N/A</button>
+    </div>
+    ${q.pen==='Gravíssima'?`<div class="alert-gv${a==='nao'?' vis':''}" id="ac-${q.id}">⚠️ Não conformidade GRAVÍSSIMA — ação imediata!</div>`:''}
+    <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
+      <textarea maxlength="100" style="flex:1;min-width:180px;height:38px;font-size:12px;padding:6px 8px;border:1px solid var(--br);border-radius:6px;resize:none;font-family:inherit" placeholder="Comentário (máx. 100 caracteres)" oninput="APP.coment[${q.id}]=this.value">${APP.coment[q.id]||''}</textarea>
+      <input maxlength="10" style="width:110px;font-size:12px;padding:6px 8px;border:1px solid var(--br);border-radius:6px;font-family:inherit" placeholder="Nº chamado" oninput="APP.chamado[${q.id}]=this.value" value="${APP.chamado[q.id]||''}">
+    </div>
+  </div>`;
+}
+
+function renderAusentesList(){
+  if(!APP.ausentes.length)return'<div style="font-size:12px;color:var(--mu);padding:4px 0">Nenhum colaborador ausente registrado.</div>';
+  return APP.ausentes.map((a,i)=>`
+    <div style="display:flex;gap:6px;align-items:flex-start;margin-bottom:8px;padding:8px;background:var(--bg);border-radius:6px">
+      <div style="flex:1">
+        <div style="font-size:12px;font-weight:600">${a.nome}</div>
+        <div style="font-size:11px;color:var(--mu)">${a.motivo}</div>
+      </div>
+      <button onclick="rmAusente(${i})" style="background:none;border:none;color:var(--er);font-size:16px;cursor:pointer;padding:0">×</button>
+    </div>`).join('');
+}
+window.renderAusentesList=renderAusentesList;
+
+function addAusente(){
+  const nome=prompt('Nome completo do colaborador (nome e sobrenome):');
+  if(!nome||!nome.trim())return;
+  const motivo=prompt('Motivo da ausência:');
+  if(!motivo||!motivo.trim())return;
+  APP.ausentes.push({nome:nome.trim(),motivo:motivo.trim()});
+  const el=$('ausentes-list');if(el)el.innerHTML=renderAusentesList();
+}
+window.addAusente=addAusente;
+
+function rmAusente(i){
+  APP.ausentes.splice(i,1);
+  const el=$('ausentes-list');if(el)el.innerHTML=renderAusentesList();
+}
+window.rmAusente=rmAusente;
+
+function setAns(id,v){
+  APP.ans[id]=v;
+  const qEl=$(`q-${id}`);if(qEl)qEl.className=`q${v==='sim'?' ans-sim':v==='nao'?' ans-nao':''}`;
+  ['sim','nao','na'].forEach(x=>{const b=$(`o${x[0]}${x==='na'?'na':''}-${id}`);if(b)b.className='opt'+(APP.ans[id]===x?' s-'+x:'');});
+  const ac=$(`ac-${id}`);if(ac)ac.className='alert-gv'+(v==='nao'?' vis':'');
+  updScore();
+}
+// expose globally for onclick
+window.setAns=setAns;
+
+function handlePhotos(input,id,min){
+  if(!PHOTOS[id])PHOTOS[id]=[];
+  Array.from(input.files).forEach(f=>PHOTOS[id].push(f));
+  renderPrevs(id,min);updScore();
+}
+window.handlePhotos=handlePhotos;
+
+function renderPrevs(id,min){
+  const files=PHOTOS[id]||[];
+  const prev=$(`prev-${id}`);if(prev)prev.innerHTML=files.map((f,i)=>`<div class="ph-thumb"><img src="${URL.createObjectURL(f)}"><div class="ph-rm" onclick="rmPhoto(${id},${i},${min})">×</div></div>`).join('');
+  const pz=$(`pz-${id}`);if(pz){pz.className='pz'+(files.length?' ok':'');pz.querySelector('.pz-icon').textContent=files.length?'✅':'📷';}
+  const fc=$(`fc-${id}`);if(fc)fc.innerHTML=`<span class="fc-${files.length>=min?'ok':'warn'}">${files.length} / ${min} fotos ${files.length>=min?'✓':'— mínimo necessário'}</span>`;
+  const qEl=$(`q-${id}`);if(qEl)qEl.className=`q foto-q${files.length?' foto-done':''}`;
+}
+window.rmPhoto=(id,i,min)=>{if(PHOTOS[id])PHOTOS[id].splice(i,1);renderPrevs(id,min);updScore();};
+
+function updScore(){
+  const avQs=QS.filter(q=>q.tp==='av'&&q.pts);
+  let tot=0,ans=0;
+  avQs.forEach(q=>{if(APP.ans[q.id]){ans++;if(APP.ans[q.id]==='sim')tot+=q.pts;}});
+  const sf=$('sf'),sv=$('sv');
+  if(sf){sf.style.width=(ans?Math.min(tot,100)+'%':'0%');sf.style.background=tot>=80?'#15803d':tot>=60?'#d97706':'#dc2626';}
+  if(sv)sv.textContent=ans?tot.toFixed(1):'—';
+}
+
+function toggleSec(id,hdr){
+  const el=$(id);const arr=hdr.querySelector('.arr');
+  const hide=el.style.display!=='none';el.style.display=hide?'none':'';if(arr)arr.textContent=hide?'▸':'▾';
+}
+window.toggleSec=toggleSec;
+
+async function submitForm(){
+  if(!APP.nomeGerente||!APP.nomeGerente.trim()){alert('⚠️ Informe o nome e sobrenome da gerente antes de enviar.');$('inp-nome-gerente')?.focus();return;}
+  if(!DENTRO_PRAZO&&!APP.lateReason.trim()){alert('⚠️ Informe o motivo do preenchimento fora do prazo.');$('late-reason')?.focus();return;}
+  const avAns=QS.filter(q=>q.tp==='av'&&APP.ans[q.id]).length;
+  if(avAns<5){alert('Responda pelo menos algumas perguntas de avaliação antes de enviar.');return;}
+  const btn=document.querySelector('.btn-prim');if(btn){btn.disabled=true;btn.textContent='Enviando…';}
+
+  const formId=APP.formulario.id;
+  // 1. Salva respostas
+  const respRows=QS.filter(q=>q.tp==='av'&&APP.ans[q.id]).map(q=>({
+    formulario_id:formId,questao_id:q.id,resposta:APP.ans[q.id],obs:APP.obs[q.id]||null,
+    comentario:APP.coment[q.id]||null,chamado:APP.chamado[q.id]||null
+  }));
+  if(respRows.length){
+    await sb.from('respostas').upsert(respRows,{onConflict:'formulario_id,questao_id'});
+  }
+  // 2. Upload fotos
+  let fotoCount=0;
+  for(const qid of Object.keys(PHOTOS)){
+    for(let i=0;i<PHOTOS[qid].length;i++){
+      const file=PHOTOS[qid][i];
+      const path=`${formId}/${qid}/${Date.now()}_${i}_${file.name}`;
+      const {error:ue}=await sb.storage.from('auditoria-fotos').upload(path,file,{upsert:true});
+      if(!ue){await sb.from('fotos').insert({formulario_id:formId,questao_id:parseInt(qid),tipo:'foto',storage_path:path});fotoCount++;}
+    }
+  }
+  // 3. Calcula score
+  const avQs=QS.filter(q=>q.tp==='av'&&q.pts);
+  let score=0,nsim=0,nnao=0,nna=0;
+  avQs.forEach(q=>{const a=APP.ans[q.id];if(a==='sim'){score+=q.pts;nsim++;}else if(a==='nao')nnao++;else if(a==='na')nna++;});
+  // 4. Atualiza formulário
+  const fillEnd=new Date();
+  const fillDur=Math.floor((fillEnd-APP.fillStart)/1000);
+  const supAplicando=!!APP._supAplicando;
+  const updatePayload={
+    score:Math.round(score*10)/10,
+    total_sim:nsim,total_nao:nnao,total_na:nna,total_foto:fotoCount,
+    fill_end:fillEnd.toISOString(),fill_duration_sec:fillDur,
+    late_reason:APP.lateReason||null,
+    nome_gerente:APP.nomeGerente.trim(),
+    updated_at:new Date().toISOString()
+  };
+  // Salva nome no perfil local para próximas vezes
+  APP.profile.nome_gerente=APP.nomeGerente.trim();
+  localStorage.setItem('vidi_profile',JSON.stringify(APP.profile));
+  if(supAplicando){
+    // Supervisora aplicou: já é revisado
+    updatePayload.status='revisado';
+    updatePayload.preenchido_por='supervisora';
+    updatePayload.review_start=fillEnd.toISOString();
+    updatePayload.review_end=fillEnd.toISOString();
+    updatePayload.review_duration_sec=0;
+  } else {
+    updatePayload.status='enviado';
+  }
+  updatePayload.percepcao_geral=APP.percepcao||null;
+  await sb.from('formularios').update(updatePayload).eq('id',formId);
+  // Salvar ausentes
+  if(APP.ausentes.length){
+    await sb.from('ausencias_ciclo').delete().eq('formulario_id',formId);
+    await sb.from('ausencias_ciclo').insert(APP.ausentes.map(a=>({formulario_id:formId,nome_colaborador:a.nome,motivo:a.motivo})));
+  }
+  // 5. Notificação
+  if(supAplicando){
+    // Notifica coordenador (quem tem role=coordenador)
+    const {data:coords}=await sb.from('profiles').select('email').eq('role','coordenador');
+    for(const c of (coords||[])){
+      await createNotif(c.email,'supervisora_aplicou',
+        `📋 Supervisora aplicou formulário — ${APP.lojaAtual.nome}`,
+        `${APP.profile.nome||APP.profile.email} aplicou o formulário do ${cicloLabel()} diretamente na loja.`,
+        formId);
+    }
+    APP._supAplicando=false;
+    alert('✅ Formulário aplicado com sucesso!');
+    await showSupHome();
+  } else {
+    const {data:sup}=await sb.from('supervisoras').select('email').eq('id',APP.formulario.supervisora_id).single();
+    if(sup){
+      await createNotif(sup.email,'formulario_enviado',
+        `📋 Formulário enviado — ${APP.lojaAtual.nome}`,
+        `${APP.profile.nome||APP.profile.email} enviou o formulário do ${cicloLabel()}.${!DENTRO_PRAZO?' ⚠️ Fora do prazo ('+DIAS_ATRASO+'d).':''}`,
+        formId);
+    }
+    alert('✅ Formulário enviado com sucesso!');
+    await showGerenteHome();
+  }
+}
+
+// =====================================================
+// SUPERVISORA HOME
+// =====================================================
+async function showSupHome(){
+  render(`<div class="main"><div class="card" style="text-align:center;padding:30px;font-size:13px;color:var(--mu)">Carregando…</div></div>`);
+  const supId=APP.profile.supervisora_id;
+  const {data:lojas}=await sb.from('lojas').select('*').eq('supervisora_id',supId).order('nome');
+  APP.lojas=lojas||[];
+  const lojaIds=(lojas||[]).map(l=>l.id);
+  let forms=[];
+  if(lojaIds.length){
+    const {data:fs}=await sb.from('formularios').select('*').in('loja_id',lojaIds).eq('ciclo',CICLO.n);
+    forms=fs||[];
+  }
+  const fByLoja={};forms.forEach(f=>fByLoja[f.loja_id]=f);
+  const pending=forms.filter(f=>f.status==='enviado'||f.status==='reenviado').length;
+  const revisado=forms.filter(f=>f.status==='revisado').length;
+  const emAjuste=forms.filter(f=>f.status==='ajustes_solicitados').length;
+  const atrasados=forms.filter(f=>f.is_late).length;
+
+  render(`<div class="main">
+    <div class="card">
+      <div class="card-title">👁 Revisão de formulários — ${cicloLabel()}</div>
+      <div class="sum-grid">
+        <div class="sum-card"><div class="sum-val" style="color:var(--blue)">${(lojas||[]).length}</div><div class="sum-lbl">lojas</div></div>
+        <div class="sum-card"><div class="sum-val" style="color:#b45309">${pending}</div><div class="sum-lbl">aguardando revisão</div></div>
+        <div class="sum-card"><div class="sum-val" style="color:#9a3412">${emAjuste}</div><div class="sum-lbl">em ajuste</div></div>
+        <div class="sum-card"><div class="sum-val" style="color:#15803d">${revisado}</div><div class="sum-lbl">concluídos</div></div>
+      </div>
+    </div>
+    <div class="card">
+      ${(lojas||[]).length===0?`<div style="text-align:center;padding:20px;font-size:13px;color:var(--mu)">Nenhuma loja atribuída.</div>`
+      :(lojas||[]).map(l=>{
+        const f=fByLoja[l.id];
+        const status=!f?`<span class="chip chip-pend">⏳ Não preenchido</span>`
+          :f.status==='revisado'?`<span class="chip chip-rev">✅ ${f.preenchido_por==='supervisora'?'Aplicado pela sup.':'Concluído'} (${f.score}pts)</span>`
+          :f.status==='enviado'?`<span class="chip chip-ok" style="background:#fef3c7;color:#78350f">📤 Aguarda revisão</span>`
+          :f.status==='reenviado'?`<span class="chip chip-ok" style="background:#dbeafe;color:#1e40af">↻ Reenviado — conferir</span>`
+          :f.status==='ajustes_solicitados'?`<span class="chip" style="background:#fed7aa;color:#9a3412">🔧 Aguarda correção da gerente</span>`
+          :`<span class="chip chip-pend">📝 Rascunho</span>`;
+        const lateTag=f?.is_late?`<span class="chip chip-late">⚠ ${f.dias_atraso}d atraso</span>`:'';
+        return`<div style="display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--br);gap:10px;flex-wrap:wrap">
+          <div>
+            <div style="font-size:13px;font-weight:600">${l.nome} <span class="txt-sm">— ${l.cidade}</span></div>
+            <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">${status}${lateTag}</div>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            ${f&&(f.status==='enviado'||f.status==='reenviado')?`<button class="btn btn-prim btn-sm" onclick="showSupReview('${f.id}')">${f.status==='reenviado'?'Conferir →':'Revisar →'}</button>`:''}
+            ${f&&(f.status==='revisado'||f.status==='ajustes_solicitados')?`<button class="btn btn-sec btn-sm" onclick="showSupReview('${f.id}')">Ver →</button>`:''}
+            ${!f||f.status==='rascunho'?`<button class="btn btn-sec btn-sm" style="border-color:var(--blue);color:var(--blue)" onclick="startFormAsSup('${l.id}','${f?f.id:''}')">📋 Aplicar formulário</button>`:''}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+    <button class="btn btn-sec" style="width:100%;margin-top:4px" onclick="showSupMetrics()">📊 Ver minhas métricas</button>
+  </div>`);
+}
+
+// =====================================================
+// SUPERVISORA REVISÃO
+// =====================================================
+async function showSupReview(formId){
+  render(`<div class="main"><div class="card" style="text-align:center;padding:30px;color:var(--mu)">Carregando formulário…</div></div>`);
+  const {data:form}=await sb.from('formularios').select('*').eq('id',formId).single();
+  const {data:rs}=await sb.from('respostas').select('*').eq('formulario_id',formId);
+  const {data:fotos}=await sb.from('fotos').select('*').eq('formulario_id',formId);
+  const {data:loja}=await sb.from('lojas').select('*').eq('id',form.loja_id).single();
+
+  if(!APP.reviewStart)APP.reviewStart=new Date();
+  // Registra review_start se ainda não tiver
+  if(!form.review_start&&form.status==='enviado'){
+    await sb.from('formularios').update({review_start:new Date().toISOString()}).eq('id',formId);
+  }
+
+  const respByQ={};(rs||[]).forEach(r=>respByQ[r.questao_id]=r);
+  const fotosByQ={};(fotos||[]).forEach(f=>{if(f.tipo==='ajuste')return;if(!fotosByQ[f.questao_id])fotosByQ[f.questao_id]=[];fotosByQ[f.questao_id].push(f);});
+  const ajusteFotosByQ={};(fotos||[]).forEach(f=>{if(f.tipo!=='ajuste')return;if(!ajusteFotosByQ[f.questao_id])ajusteFotosByQ[f.questao_id]=[];ajusteFotosByQ[f.questao_id].push(f);});
+
+  // Pre-load signed URLs for photos
+  const signedUrls={};
+  for(const [qid,fts] of Object.entries(fotosByQ)){
+    signedUrls[qid]=[];
+    for(const ft of fts){
+      const {data:u}=await sb.storage.from('auditoria-fotos').createSignedUrl(ft.storage_path,3600);
+      if(u)signedUrls[qid].push(u.signedUrl);
+    }
+  }
+  // Signed URLs das fotos de comprovação dos ajustes
+  const ajusteUrls={};
+  for(const [qid,fts] of Object.entries(ajusteFotosByQ)){
+    ajusteUrls[qid]=[];
+    for(const ft of fts){
+      const {data:u}=await sb.storage.from('auditoria-fotos').createSignedUrl(ft.storage_path,3600);
+      if(u)ajusteUrls[qid].push(u.signedUrl);
+    }
+  }
+
+  const nc=QS.filter(q=>q.tp==='av'&&respByQ[q.id]?.resposta==='nao');
+  const gv=nc.filter(q=>q.pen==='Gravíssima');
+
+  const lateSection=form.is_late?`<div style="background:#fff5f5;border:1px solid #fca5a5;border-radius:8px;padding:12px;margin-bottom:12px">
+    <div style="font-size:13px;font-weight:700;color:#991b1b;margin-bottom:6px">🔴 Preenchido fora do prazo — ${form.dias_atraso} dia(s)</div>
+    ${form.late_reason?`<div style="font-size:12px;color:var(--tx);margin-bottom:8px;font-style:italic">Motivo da gerente: "${form.late_reason}"</div>`:''}
+    <div class="sup-box">
+      <div class="sup-lbl">Análise do atraso:</div>
+      <textarea class="sup-ta" id="sup-late-cmt" placeholder="Registre sua análise…">${form.sup_comentario_atraso||''}</textarea>
+      <div class="sup-btns">
+        <button class="sbtn sbtn-ok" onclick="setSupLate('justificado')">✓ Justificado</button>
+        <button class="sbtn sbtn-nok" onclick="setSupLate('injustificado')">✗ Injustificado</button>
+      </div>
+    </div>
+  </div>`:'';
+
+  const secs={};QS.forEach(q=>{if(!secs[q.sec])secs[q.sec]={sn:q.sn,qs:[]};secs[q.sec].qs.push(q);});
+  const secsHtml=Object.entries(secs).map(([k,s])=>`
+    <div class="sec-card">
+      <div class="sec-hdr" onclick="toggleSec('rsb-${k}',this)"><span class="sec-title">${s.sn}</span><span class="arr">▾</span></div>
+      <div id="rsb-${k}">${s.qs.map(q=>buildRQ(q,respByQ[q.id],signedUrls[q.id]||[],ajusteUrls[q.id]||[])).join('')}</div>
+    </div>`).join('');
+
+  // Carregar ausentes e chamados
+  const {data:ausentes}=await sb.from('ausencias_ciclo').select('*').eq('formulario_id',formId);
+  const chamados=(rs||[]).filter(r=>r.chamado);
+  const comentarios=(rs||[]).filter(r=>r.comentario);
+
+  const chamadosHtml=chamados.length?`<div class="card" style="margin-bottom:10px">
+    <div class="card-title">🎫 Chamados abertos pela gerente</div>
+    ${chamados.map(r=>{const q=QS.find(x=>x.id===r.questao_id);return`<div style="padding:6px 0;border-bottom:1px solid var(--br);font-size:12px"><span style="font-weight:700;color:#78350f">${r.chamado}</span> — Perg. ${q?.n||r.questao_id}: ${(q?.tx||'').substring(0,60)}…</div>`;}).join('')}
+  </div>`:'';
+
+  const comentariosHtml=comentarios.length?`<div class="card" style="margin-bottom:10px">
+    <div class="card-title">💬 Comentários da gerente</div>
+    ${comentarios.map(r=>{const q=QS.find(x=>x.id===r.questao_id);return`<div style="padding:6px 0;border-bottom:1px solid var(--br);font-size:12px"><span style="font-weight:600">Perg. ${q?.n||r.questao_id}:</span> ${r.comentario}</div>`;}).join('')}
+  </div>`:'';
+
+  const ausentesHtml=(ausentes&&ausentes.length)?`<div class="card" style="margin-bottom:10px;border-color:#fca5a5">
+    <div class="card-title" style="color:#991b1b">👥 Colaboradores ausentes na troca de ciclo</div>
+    ${ausentes.map(a=>`<div style="padding:6px 0;border-bottom:1px solid var(--br);font-size:12px"><span style="font-weight:600">${a.nome_colaborador}</span> — ${a.motivo}</div>`).join('')}
+  </div>`:'';
+
+  const percepcaoHtml=form.percepcao_geral?`<div class="card" style="margin-bottom:10px">
+    <div class="card-title">💭 Percepção geral da gerente</div>
+    <div style="font-size:13px;color:var(--tx);font-style:italic">"${form.percepcao_geral}"</div>
+  </div>`:'';
+
+  render(`<div class="main">
+    <button class="btn btn-sec btn-sm" style="margin-bottom:10px" onclick="showSupHome()">← Voltar</button>
+    <div class="card" style="margin-bottom:10px">
+      <div style="font-size:15px;font-weight:700">${loja?.nome||'Loja'}</div>
+      <div class="txt-sm">${cicloLabel()} · Enviado: ${form.fill_end?new Date(form.fill_end).toLocaleString('pt-BR'):'—'} · Tempo preench.: ${fmtDur(form.fill_duration_sec)}</div>
+      <div class="score-row" style="margin-top:8px">
+        <div class="score-bar"><div class="score-fill" style="width:${form.score}%;background:${form.score>=80?'#15803d':form.score>=60?'#d97706':'#dc2626'}"></div></div>
+        <div class="score-num">${form.score}</div><span class="txt-sm">/ 100</span>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+        <span class="chip chip-ok">✓ ${form.total_sim} conformes</span>
+        <span class="chip chip-late">✗ ${form.total_nao} não conformes</span>
+        ${gv.length?`<span class="chip" style="background:#fee2e2;color:#7f1d1d">⚠ ${gv.length} Gravíssima(s)</span>`:''}
+        ${chamados.length?`<span class="chip" style="background:#fef3c7;color:#78350f">🎫 ${chamados.length} chamado(s)</span>`:''}
+        ${(ausentes&&ausentes.length)?`<span class="chip" style="background:#fee2e2;color:#991b1b">👥 ${ausentes.length} ausente(s)</span>`:''}
+      </div>
+    </div>
+    ${percepcaoHtml}
+    ${chamadosHtml}
+    ${comentariosHtml}
+    ${ausentesHtml}
+    ${lateSection}
+    ${secsHtml}
+    ${form.status==='revisado'?`<div class="card" style="text-align:center;background:#f0fdf4;border-color:#86efac"><div style="font-size:18px">✅</div><div style="font-size:13px;font-weight:600;color:#15803d">Revisão concluída</div><div class="txt-sm">em ${form.review_end?new Date(form.review_end).toLocaleString('pt-BR'):'—'}</div></div>`
+    :form.status==='ajustes_solicitados'?`<div class="card" style="text-align:center;background:#fff7ed;border-color:#fdba74"><div style="font-size:18px">🔧</div><div style="font-size:13px;font-weight:600;color:#9a3412">Ajustes solicitados</div><div class="txt-sm">Aguardando a gerente corrigir e reenviar.</div></div>`
+    :`<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap">
+      <button class="btn btn-sec" onclick="showSupHome()">← Voltar</button>
+      <button class="btn" style="background:#fed7aa;color:#9a3412" onclick="requestAdjustments('${formId}')">📩 Solicitar ajustes</button>
+      <button class="btn btn-prim" onclick="approveReview('${formId}')">${form.status==='reenviado'?'✓ Concluir (executado)':'✓ Aprovar e concluir'}</button>
+    </div>`}
+  </div>`);
+
+  // armazena respostas locais para comentários
+  window._reviewFormId=formId;
+  window._reviewRespByQ=respByQ;
+}
+window.showSupReview=showSupReview;
+
+function buildRQ(q,resp,urls,ajusteUrls){
+  ajusteUrls=ajusteUrls||[];
+  const ajusteFotosHtml=ajusteUrls.length?`<div style="margin-top:6px"><div style="font-size:11px;font-weight:600;color:#166534;margin-bottom:4px">📷 Fotos da comprovação:</div><div class="ph-grid">${ajusteUrls.map(u=>`<div class="ph-thumb" style="cursor:pointer" onclick="openPhoto('${u}')"><img src="${u}" loading="lazy"></div>`).join('')}</div></div>`:'';
+  if(q.tp==='foto'){
+    const thumbs=urls.map(u=>`<div class="ph-thumb" style="cursor:pointer" onclick="openPhoto('${u}')"><img src="${u}" loading="lazy"></div>`).join('');
+    return`<div class="q${urls.length?' foto-done':''}">
+      <div class="q-meta"><span class="pb pb-Fo">📷 FOTO</span> Pergunta ${q.n}</div>
+      <div class="q-text">${q.tx}</div>
+      <div style="font-size:12px;color:var(--mu);margin-top:4px">${urls.length} foto(s) ${urls.length>=q.min?'✅':'⚠️ mín: '+q.min}</div>
+      <div class="ph-grid">${thumbs}</div>
+    </div>`;
+  }
+  const a=resp?.resposta||'—';
+  const al=a==='sim'?'✅ Conforme':a==='nao'?'❌ Não conforme':'— N/A';
+  const bg=a==='sim'?' ans-sim':a==='nao'?' ans-nao':'';
+  return`<div class="q${bg}">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+      <div style="flex:1">
+        <div class="q-meta">Pergunta ${q.n}${q.area?' · '+q.area:''}</div>
+        <div class="q-text">${q.tx}</div>
+        ${resp?.obs?`<div style="font-size:11px;background:#f9fafb;padding:4px 8px;border-radius:6px;margin-top:4px;color:var(--mu)">📝 ${resp.obs}</div>`:''}
+        ${resp?.comentario?`<div style="font-size:11px;background:#eff6ff;padding:4px 8px;border-radius:6px;margin-top:4px;color:#1e40af">💬 ${resp.comentario}</div>`:''}
+        ${resp?.chamado?`<div style="font-size:11px;background:#fef3c7;padding:4px 8px;border-radius:6px;margin-top:4px;color:#78350f;font-weight:600">🎫 Chamado: ${resp.chamado}</div>`:''}
+      </div>
+      <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+        ${q.pen?`<span class="pb ${penCls(q.pen)}">${q.pen}${q.pts?' · '+q.pts+'pts':' · CRÍTICO'}</span>`:''}
+        <span style="font-size:12px;font-weight:700;${a==='sim'?'color:#15803d':a==='nao'?'color:#991b1b':'color:var(--mu)'}">${al}</span>
+        ${resp?.sup_status==='ok'?`<span style="font-size:11px;color:#15803d;font-weight:600">✓ validado</span>`:resp?.sup_status==='nok'?`<span style="font-size:11px;color:#991b1b;font-weight:600">⚠ urgente</span>`:''}
+      </div>
+    </div>
+    ${a==='nao'?`<div class="sup-box">
+      <div class="sup-lbl">💬 Orientação / comentário:</div>
+      <textarea class="sup-ta" id="sc-${q.id}" placeholder="Ação, prazo, responsável…">${resp?.sup_comentario||''}</textarea>
+      <div class="sup-btns">
+        <button class="sbtn sbtn-ok" onclick="setSupAns(${q.id},'ok')">✓ Validar</button>
+        <button class="sbtn sbtn-nok" onclick="setSupAns(${q.id},'nok')">⚠ Urgente</button>
+      </div>
+      ${(resp?.gerente_ajuste||ajusteUrls.length)?`<div style="margin-top:8px;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:6px 8px;font-size:12px;color:#166534">${resp?.gerente_ajuste?`<strong>🔧 Ajuste feito pela gerente:</strong><br>${resp.gerente_ajuste}`:''}${ajusteFotosHtml}</div>`:''}
+    </div>`:''}
+  </div>`;
+}
+
+async function setSupAns(qid,val){
+  const formId=window._reviewFormId;
+  await sb.from('respostas').update({sup_status:val}).eq('formulario_id',formId).eq('questao_id',qid);
+}
+window.setSupAns=setSupAns;
+
+async function setSupLate(val){
+  const formId=window._reviewFormId;
+  const cmt=$('sup-late-cmt')?.value||'';
+  await sb.from('formularios').update({sup_comentario_atraso:cmt,sup_julgamento_atraso:val}).eq('id',formId);
+}
+window.setSupLate=setSupLate;
+
+async function approveReview(formId){
+  // Salva todos os comentários abertos
+  const qas=document.querySelectorAll('[id^="sc-"]');
+  for(const ta of qas){
+    const qid=parseInt(ta.id.replace('sc-',''));
+    if(ta.value.trim()){
+      await sb.from('respostas').update({sup_comentario:ta.value}).eq('formulario_id',formId).eq('questao_id',qid);
+    }
+  }
+  const cmt=$('sup-late-cmt');
+  if(cmt)await sb.from('formularios').update({sup_comentario_atraso:cmt.value}).eq('id',formId);
+
+  const reviewEnd=new Date();
+  const dur=Math.floor((reviewEnd-(APP.reviewStart||new Date()))/1000);
+  await sb.from('formularios').update({status:'revisado',review_end:reviewEnd.toISOString(),review_duration_sec:dur}).eq('id',formId);
+
+  // Notifica gerente (no email da loja)
+  const {data:form}=await sb.from('formularios').select('gerente_id,loja_id').eq('id',formId).single();
+  const {data:loja}=await sb.from('lojas').select('nome,email').eq('id',form.loja_id).single();
+  if(loja?.email)await createNotif(loja.email,'revisao_concluida',
+    `✅ Revisão concluída — ${loja?.nome||''}`,
+    `${APP.profile.nome||APP.profile.email} concluiu a revisão do ${cicloLabel()}. Verifique os feedbacks.`,
+    formId);
+
+  APP.reviewStart=null;
+  alert('✅ Revisão concluída! A gerente foi notificada.');
+  await showSupHome();
+}
+window.approveReview=approveReview;
+
+async function requestAdjustments(formId){
+  // Salva os comentários/orientações abertos
+  const qas=document.querySelectorAll('[id^="sc-"]');
+  let count=0;
+  for(const ta of qas){
+    const qid=parseInt(ta.id.replace('sc-',''));
+    if(ta.value.trim()){
+      await sb.from('respostas').update({sup_comentario:ta.value}).eq('formulario_id',formId).eq('questao_id',qid);
+      count++;
+    }
+  }
+  const cmt=$('sup-late-cmt');
+  if(cmt)await sb.from('formularios').update({sup_comentario_atraso:cmt.value}).eq('id',formId);
+
+  if(count===0){
+    if(!confirm('Você não escreveu nenhuma orientação. Deseja mesmo solicitar ajustes sem comentários?'))return;
+  }
+
+  const {error:errUpd}=await sb.from('formularios').update({status:'ajustes_solicitados'}).eq('id',formId);
+  if(errUpd){alert('Erro ao salvar ajustes: '+errUpd.message+'\n\nVerifique as permissões no Supabase (RLS).'); return;}
+
+  // Notifica gerente (no email da loja)
+  const {data:form}=await sb.from('formularios').select('gerente_id,loja_id').eq('id',formId).single();
+  const {data:loja}=await sb.from('lojas').select('nome,email').eq('id',form.loja_id).single();
+  if(loja?.email)await createNotif(loja.email,'ajustes_solicitados',
+    `🔧 Ajustes solicitados — ${loja?.nome||''}`,
+    `${APP.profile.nome||APP.profile.email} solicitou ajustes no ${cicloLabel()}. Veja as orientações e corrija.`,
+    formId);
+
+  APP.reviewStart=null;
+  alert('📩 Ajustes solicitados! A gerente foi notificada para corrigir.');
+  await showSupHome();
+}
+window.requestAdjustments=requestAdjustments;
+
+// =====================================================
+// GERENTE — VER AJUSTES E CORRIGIR
+// =====================================================
+async function showGerenteAdjust(formId){
+  render(`<div class="main"><div class="card" style="text-align:center;padding:30px;color:var(--mu)">Carregando ajustes…</div></div>`);
+  Object.keys(ADJPHOTOS).forEach(k=>delete ADJPHOTOS[k]);
+  const {data:form}=await sb.from('formularios').select('*').eq('id',formId).single();
+  const {data:rs}=await sb.from('respostas').select('*').eq('formulario_id',formId);
+  const {data:loja}=await sb.from('lojas').select('*').eq('id',form.loja_id).single();
+  const respByQ={};(rs||[]).forEach(r=>respByQ[r.questao_id]=r);
+
+  // Itens com orientação da supervisora (não conformes que ela comentou ou marcou)
+  const itens=QS.filter(q=>{const r=respByQ[q.id];return r&&(r.sup_comentario||r.sup_status==='nok'||r.sup_status==='ok'&&r.resposta==='nao');});
+  const pendentes=QS.filter(q=>{const r=respByQ[q.id];return r&&r.resposta==='nao'&&(r.sup_comentario||r.sup_status);});
+
+  const itensHtml=pendentes.length?pendentes.map(q=>{
+    const r=respByQ[q.id];
+    const urg=r.sup_status==='nok'?`<span class="chip chip-late" style="margin-left:6px">⚠ Urgente</span>`:'';
+    return`<div class="card" style="margin-bottom:10px;border-color:#fdba74">
+      <div style="font-size:13px;font-weight:600">Pergunta ${q.n}${urg}</div>
+      <div style="font-size:12px;color:var(--mu);margin:4px 0">${q.tx}</div>
+      ${r.sup_comentario?`<div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:8px;font-size:12px;color:#9a3412;margin-bottom:8px"><strong>📩 Orientação da supervisora:</strong><br>${r.sup_comentario}</div>`:''}
+      <div class="sup-lbl" style="font-size:12px;font-weight:600;margin-bottom:4px">✍️ O que você ajustou:</div>
+      <textarea class="inp" id="ga-${q.id}" placeholder="Descreva o que foi corrigido nesta loja…" style="width:100%;height:64px;resize:none">${r.gerente_ajuste||''}</textarea>
+      <div class="sup-lbl" style="font-size:12px;font-weight:600;margin:10px 0 4px">📷 Fotos da comprovação:</div>
+      <div class="pz" id="apz-${q.id}" onclick="$('afi-${q.id}').click()" style="cursor:pointer">
+        <div class="pz-icon">📷</div>
+        <div class="pz-lbl">Toque para tirar foto / anexar arquivo</div>
+        <input type="file" id="afi-${q.id}" multiple accept="image/*" capture="environment" style="display:none" onchange="handleAdjPhotos(this,${q.id})">
+      </div>
+      <div class="ph-grid" id="aprev-${q.id}"></div>
+    </div>`;
+  }).join(''):`<div class="card" style="text-align:center;color:var(--mu);font-size:13px">A supervisora não detalhou itens específicos, mas solicitou ajustes gerais. Faça as correções na loja e reenvie.</div>`;
+
+  render(`<div class="main">
+    <button class="btn btn-sec btn-sm" style="margin-bottom:10px" onclick="showGerenteHome()">← Voltar</button>
+    <div class="card" style="margin-bottom:10px;background:#fff7ed;border-color:#fdba74">
+      <div style="font-size:15px;font-weight:700;color:#9a3412">🔧 Ajustes solicitados — ${loja?.nome||''}</div>
+      <div class="txt-sm">${cicloLabel()} · A supervisora pediu correções. Faça os ajustes na loja, descreva abaixo o que foi feito e reenvie.</div>
+    </div>
+    ${itensHtml}
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap">
+      <button class="btn btn-sec" onclick="showGerenteHome()">← Voltar</button>
+      <button class="btn btn-prim" onclick="resendAdjustments('${formId}')">↻ Reenviar para supervisora</button>
+    </div>
+  </div>`);
+}
+window.showGerenteAdjust=showGerenteAdjust;
+
+function handleAdjPhotos(input,id){
+  if(!ADJPHOTOS[id])ADJPHOTOS[id]=[];
+  Array.from(input.files).forEach(f=>ADJPHOTOS[id].push(f));
+  renderAdjPrevs(id);
+}
+window.handleAdjPhotos=handleAdjPhotos;
+
+function renderAdjPrevs(id){
+  const files=ADJPHOTOS[id]||[];
+  const prev=$(`aprev-${id}`);if(prev)prev.innerHTML=files.map((f,i)=>`<div class="ph-thumb"><img src="${URL.createObjectURL(f)}"><div class="ph-rm" onclick="rmAdjPhoto(${id},${i})">×</div></div>`).join('');
+  const pz=$(`apz-${id}`);if(pz){pz.className='pz'+(files.length?' ok':'');pz.querySelector('.pz-icon').textContent=files.length?'✅':'📷';}
+}
+window.rmAdjPhoto=(id,i)=>{if(ADJPHOTOS[id])ADJPHOTOS[id].splice(i,1);renderAdjPrevs(id);};
+
+async function resendAdjustments(formId){
+  // Salva o que a gerente ajustou em cada item
+  const tas=document.querySelectorAll('[id^="ga-"]');
+  for(const ta of tas){
+    const qid=parseInt(ta.id.replace('ga-',''));
+    await sb.from('respostas').update({gerente_ajuste:ta.value||null}).eq('formulario_id',formId).eq('questao_id',qid);
+  }
+  // Sobe as fotos de comprovação
+  for(const qid of Object.keys(ADJPHOTOS)){
+    for(let i=0;i<ADJPHOTOS[qid].length;i++){
+      const file=ADJPHOTOS[qid][i];
+      const path=`${formId}/ajuste-${qid}-${Date.now()}-${i}.jpg`;
+      const {error:ue}=await sb.storage.from('auditoria-fotos').upload(path,file,{upsert:true});
+      if(!ue)await sb.from('fotos').insert({formulario_id:formId,questao_id:parseInt(qid),tipo:'ajuste',storage_path:path});
+    }
+  }
+  await sb.from('formularios').update({status:'reenviado'}).eq('id',formId);
+
+  // Notifica supervisora
+  const {data:form}=await sb.from('formularios').select('supervisora_id,loja_id').eq('id',formId).single();
+  const {data:sup}=await sb.from('supervisoras').select('email').eq('id',form.supervisora_id).single();
+  const {data:loja}=await sb.from('lojas').select('nome').eq('id',form.loja_id).single();
+  if(sup)await createNotif(sup.email,'reenviado',
+    `↻ Ajustes reenviados — ${loja?.nome||''}`,
+    `${APP.profile.nome||APP.profile.email} corrigiu os ajustes do ${cicloLabel()}. Confira e conclua.`,
+    formId);
+
+  alert('↻ Reenviado para a supervisora! Ela vai conferir e concluir.');
+  await showGerenteHome();
+}
+window.resendAdjustments=resendAdjustments;
+
+// =====================================================
+// SUPERVISORA APLICA FORMULÁRIO NA LOJA
+// =====================================================
+async function startFormAsSup(lojaId, formId){
+  const loja = APP.lojas.find(l=>l.id===lojaId);
+  APP.lojaAtual = loja;
+  APP.ans={};APP.obs={};APP.coment={};APP.chamado={};APP.lateReason='';APP.percepcao='';APP.ausentes=[];APP.fillStart=new Date();
+  Object.keys(PHOTOS).forEach(k=>delete PHOTOS[k]);
+
+  if(formId){
+    const {data:f}=await sb.from('formularios').select('*').eq('id',formId).single();
+    APP.formulario=f;
+    const {data:rs}=await sb.from('respostas').select('*').eq('formulario_id',formId);
+    (rs||[]).forEach(r=>{APP.ans[r.questao_id]=r.resposta;APP.obs[r.questao_id]=r.obs||'';});
+  } else {
+    const {data:newF,error}=await sb.from('formularios').insert({
+      loja_id:lojaId,ciclo:CICLO.n,ciclo_ini:CICLO.ini,ciclo_fim:CICLO.fim,
+      prazo:DEADLINE.toISOString().split('T')[0],gerente_id:APP.profile.id,
+      supervisora_id:APP.profile.supervisora_id,
+      is_late:!DENTRO_PRAZO,dias_atraso:DIAS_ATRASO,
+      fill_start:new Date().toISOString(),
+      preenchido_por:'supervisora',
+      status:'rascunho'
+    }).select().single();
+    if(error){alert('Erro: '+error.message);return;}
+    APP.formulario=newF;
+  }
+  // Flag para saber que é supervisora aplicando
+  APP._supAplicando=true;
+  renderForm();
+}
+window.startFormAsSup=startFormAsSup;
+
+// =====================================================
+// SUPERVISORA MÉTRICAS
+// =====================================================
+async function showSupMetrics(){
+  render(`<div class="main"><div class="card" style="text-align:center;padding:30px;color:var(--mu)">Carregando…</div></div>`);
+  const supId=APP.profile.supervisora_id;
+  const {data:lojas}=await sb.from('lojas').select('*').eq('supervisora_id',supId);
+  const {data:forms}=await sb.from('formularios').select('*').eq('supervisora_id',supId).order('created_at',{ascending:false});
+
+  const totalL=(lojas||[]).length;
+  const envCiclo=(forms||[]).filter(f=>f.ciclo===CICLO.n&&f.status!=='rascunho').length;
+  const revCiclo=(forms||[]).filter(f=>f.ciclo===CICLO.n&&f.status==='revisado').length;
+  const avgScore=(forms||[]).filter(f=>f.score>0).reduce((a,f,_,arr)=>a+f.score/arr.length,0);
+  const avgFill=(forms||[]).filter(f=>f.fill_duration_sec>0).reduce((a,f,_,arr)=>a+f.fill_duration_sec/arr.length,0);
+  const avgRev=(forms||[]).filter(f=>f.review_duration_sec>0).reduce((a,f,_,arr)=>a+f.review_duration_sec/arr.length,0);
+  const atrasados=(forms||[]).filter(f=>f.is_late).length;
+
+  const lojaRows=(lojas||[]).map(l=>{
+    const lf=(forms||[]).filter(f=>f.loja_id===l.id);
+    const avg=lf.filter(f=>f.score>0).reduce((a,f,_,arr)=>a+f.score/arr.length,0);
+    const cicloF=lf.find(f=>f.ciclo===CICLO.n);
+    return`<tr>
+      <td><strong>${l.nome}</strong><br><span class="txt-sm">${l.cidade}</span></td>
+      <td style="text-align:center">${lf.length}</td>
+      <td style="text-align:center">${lf.filter(f=>f.is_late).length}</td>
+      <td style="text-align:center;font-weight:700;color:${avg>=80?'#15803d':avg>=60?'#d97706':'#dc2626'}">${avg?avg.toFixed(1):'—'}</td>
+      <td style="text-align:center"><span class="chip ${!cicloF?'chip-pend':cicloF.status==='revisado'?'chip-rev':'chip-ok'}">${!cicloF?'Não enviado':cicloF.status==='revisado'?'Revisado':'Enviado'}</span></td>
+    </tr>`;}).join('');
+
+  render(`<div class="main">
+    <button class="btn btn-sec btn-sm" style="margin-bottom:10px" onclick="showSupHome()">← Voltar</button>
+    <div class="card">
+      <div class="card-title">📊 Minhas métricas</div>
+      <div class="sum-grid">
+        <div class="sum-card"><div class="sum-val" style="color:var(--blue)">${totalL}</div><div class="sum-lbl">lojas</div></div>
+        <div class="sum-card"><div class="sum-val" style="color:#15803d">${revCiclo}</div><div class="sum-lbl">revisados ciclo ${CICLO.n}</div></div>
+        <div class="sum-card"><div class="sum-val" style="color:#b45309">${totalL-envCiclo}</div><div class="sum-lbl">pendentes ciclo ${CICLO.n}</div></div>
+        <div class="sum-card"><div class="sum-val" style="color:var(--er)">${atrasados}</div><div class="sum-lbl">atrasos totais</div></div>
+        <div class="sum-card"><div class="sum-val" style="color:var(--bx);font-size:18px">${avgScore?avgScore.toFixed(1):'—'}</div><div class="sum-lbl">score médio</div></div>
+        <div class="sum-card"><div class="sum-val" style="color:var(--mu);font-size:16px">${avgFill?Math.round(avgFill/60)+'min':'—'}</div><div class="sum-lbl">tempo médio form.</div></div>
+        <div class="sum-card"><div class="sum-val" style="color:var(--mu);font-size:16px">${avgRev?Math.round(avgRev/60)+'min':'—'}</div><div class="sum-lbl">tempo médio revisão</div></div>
+        <div class="sum-card"><div class="sum-val" style="color:#15803d;font-size:18px">${totalL?Math.round(revCiclo/totalL*100):0}%</div><div class="sum-lbl">cobertura ciclo atual</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">🏪 Performance por loja</div>
+      <div style="overflow-x:auto">
+        <table class="tbl"><thead><tr><th>Loja</th><th>Forms</th><th>Atrasos</th><th>Score</th><th>Ciclo ${CICLO.n}</th></tr></thead>
+        <tbody>${lojaRows}</tbody></table>
+      </div>
+    </div>
+  </div>`);
+}
+window.showSupMetrics=showSupMetrics;
+
+// =====================================================
+// COORDENADOR DASHBOARD
+// =====================================================
+async function showCoordDashboard(){
+  render(`<div class="main"><div class="card" style="text-align:center;padding:30px;color:var(--mu)">Carregando…</div></div>`);
+  const {data:sups}=await sb.from('supervisoras').select('*');
+  const {data:lojas}=await sb.from('lojas').select('*,supervisoras(nome)');
+  const {data:forms}=await sb.from('formularios').select('*').eq('ciclo',CICLO.n);
+
+  const fByLoja={};(forms||[]).forEach(f=>fByLoja[f.loja_id]=f);
+  const supStats={};(sups||[]).forEach(s=>{supStats[s.id]={nome:s.nome,lojas:0,enviados:0,revisados:0,atrasados:0,scores:[]};});
+  (lojas||[]).forEach(l=>{if(supStats[l.supervisora_id])supStats[l.supervisora_id].lojas++;});
+  (forms||[]).forEach(f=>{
+    const s=supStats[f.supervisora_id];if(!s)return;
+    if(f.status!=='rascunho')s.enviados++;
+    if(f.status==='revisado')s.revisados++;
+    if(f.is_late)s.atrasados++;
+    if(f.score>0)s.scores.push(f.score);
+  });
+
+  const totalLojas=(lojas||[]).length;
+  const totalEnv=(forms||[]).filter(f=>f.status!=='rascunho').length;
+  const totalRev=(forms||[]).filter(f=>f.status==='revisado').length;
+  const totalAtras=(forms||[]).filter(f=>f.is_late).length;
+
+  const supRows=Object.entries(supStats).map(([id,s])=>{
+    const avg=s.scores.length?s.scores.reduce((a,v)=>a+v,0)/s.scores.length:0;
+    const cob=s.lojas?Math.round(s.revisados/s.lojas*100):0;
+    return`<tr>
+      <td><strong>${s.nome}</strong></td>
+      <td style="text-align:center">${s.lojas}</td>
+      <td style="text-align:center">${s.enviados}</td>
+      <td style="text-align:center;color:#15803d;font-weight:600">${s.revisados}</td>
+      <td style="text-align:center;color:${s.atrasados?'var(--er)':'var(--ok)'}">${s.atrasados}</td>
+      <td style="text-align:center;font-weight:700;color:${avg>=80?'#15803d':avg>=60?'#d97706':'#dc2626'}">${avg?avg.toFixed(1):'—'}</td>
+      <td style="text-align:center"><div style="display:flex;align-items:center;gap:6px;justify-content:center"><div style="width:50px;height:6px;background:var(--br);border-radius:3px;overflow:hidden"><div style="width:${cob}%;height:100%;background:${cob===100?'#15803d':cob>=60?'#d97706':'#dc2626'}"></div></div><span class="txt-sm">${cob}%</span></div></td>
+    </tr>`;}).join('');
+
+  // Ausentes do ciclo para coordenador
+  const formIds=(forms||[]).map(f=>f.id);
+  let ausentesCoord=[];
+  if(formIds.length){
+    const {data:ac}=await sb.from('ausencias_ciclo').select('*,formularios(loja_id)').in('formulario_id',formIds);
+    ausentesCoord=ac||[];
+  }
+  const normNome=n=>n.toLowerCase().trim().replace(/\s+/g,' ');
+  const ausenteCounts={};
+  ausentesCoord.forEach(a=>{const k=normNome(a.nome_colaborador);ausenteCounts[k]=(ausenteCounts[k]||0)+1;});
+  const reincidentes=Object.entries(ausenteCounts).filter(([,c])=>c>1).sort((a,b)=>b[1]-a[1]);
+
+  const ausentesCoordHtml=ausentesCoord.length?`<div class="card" style="margin-bottom:10px">
+    <div class="card-title" style="color:#991b1b">👥 Ausências na troca de ciclo — Ciclo ${CICLO.n}</div>
+    ${reincidentes.length?`<div style="margin-bottom:8px;padding:8px;background:#fff5f5;border-radius:6px;border:1px solid #fca5a5">
+      <div style="font-size:12px;font-weight:700;color:#991b1b;margin-bottom:4px">⚠ Reincidentes:</div>
+      ${reincidentes.map(([n,c])=>`<div style="font-size:12px">${n.replace(/\b\w/g,l=>l.toUpperCase())} — <strong>${c}x ausente(s)</strong></div>`).join('')}
+    </div>`:''}
+    ${ausentesCoord.map(a=>{const l=lojas?.find(x=>x.id===a.formularios?.loja_id);return`<div style="padding:5px 0;border-bottom:1px solid var(--br);font-size:12px"><span style="font-weight:600">${a.nome_colaborador}</span> <span class="txt-sm">— ${l?.nome||''}</span><br><span style="color:var(--mu)">${a.motivo}</span></div>`;}).join('')}
+  </div>`:'';
+
+  const lojaRows=(lojas||[]).map(l=>{
+    const f=fByLoja[l.id];
+    const statusChip=!f?`<span class="chip chip-pend">⏳</span>`:f.status==='revisado'?`<span class="chip chip-rev">✅ ${f.score}pts</span>`:f.status==='enviado'?`<span class="chip" style="background:#fef3c7;color:#78350f">📤</span>`:`<span class="chip chip-pend">📝</span>`;
+    return`<tr>
+      <td><strong>${l.nome}</strong><br><span class="txt-sm">${l.cidade}/${l.estado}</span></td>
+      <td class="txt-sm">${l.supervisoras?.nome||'—'}</td>
+      <td>${statusChip}</td>
+      ${f?`<td style="text-align:center">${f.is_late?`<span class="chip chip-late">${f.dias_atraso}d</span>`:'✓'}</td><td>${`<button class="btn btn-sec btn-sm" onclick="showCoordReview('${f.id}')">Ver →</button>`}</td>`:'<td></td><td></td>'}
+    </tr>`;}).join('');
+
+  render(`<div class="main">
+    <div class="card">
+      <div class="card-title">🎯 Dashboard Coordenação — ${cicloLabel()}</div>
+      <div class="sum-grid">
+        <div class="sum-card"><div class="sum-val" style="color:var(--blue)">${totalLojas}</div><div class="sum-lbl">lojas</div></div>
+        <div class="sum-card"><div class="sum-val" style="color:#b45309">${totalEnv}</div><div class="sum-lbl">formulários enviados</div></div>
+        <div class="sum-card"><div class="sum-val" style="color:#15803d">${totalRev}</div><div class="sum-lbl">revisados</div></div>
+        <div class="sum-card"><div class="sum-val" style="color:var(--er)">${totalAtras}</div><div class="sum-lbl">atrasos</div></div>
+        <div class="sum-card"><div class="sum-val" style="color:var(--bx)">${totalLojas?Math.round(totalRev/totalLojas*100):0}%</div><div class="sum-lbl">cobertura geral</div></div>
+        <div class="sum-card"><div class="sum-val" style="color:var(--bx)">${totalLojas-totalEnv}</div><div class="sum-lbl">não preenchidos</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">👥 Performance por supervisora</div>
+      <div style="overflow-x:auto">
+        <table class="tbl"><thead><tr><th>Supervisora</th><th>Lojas</th><th>Enviados</th><th>Revisados</th><th>Atrasos</th><th>Score Médio</th><th>Cobertura</th></tr></thead>
+        <tbody>${supRows}</tbody></table>
+      </div>
+    </div>
+    ${ausentesCoordHtml}
+    <div class="card">
+      <div class="card-title">🏪 Status por loja</div>
+      <div style="overflow-x:auto">
+        <table class="tbl"><thead><tr><th>Loja</th><th>Supervisora</th><th>Status</th><th>Prazo</th><th></th></tr></thead>
+        <tbody>${lojaRows}</tbody></table>
+      </div>
+    </div>
+  </div>`);
+}
+
+// =====================================================
+// COORDENADOR — VER FORMULÁRIO DE LOJA
+// =====================================================
+async function showCoordReview(formId){
+  render(`<div class="main"><div class="card" style="text-align:center;padding:30px;color:var(--mu)">Carregando…</div></div>`);
+  const {data:form}=await sb.from('formularios').select('*').eq('id',formId).single();
+  const {data:rs}=await sb.from('respostas').select('*').eq('formulario_id',formId);
+  const {data:fotos}=await sb.from('fotos').select('*').eq('formulario_id',formId);
+  const {data:loja}=await sb.from('lojas').select('*').eq('id',form.loja_id).single();
+  const {data:ausentes}=await sb.from('ausencias_ciclo').select('*').eq('formulario_id',formId);
+
+  const chamados=(rs||[]).filter(r=>r.chamado);
+  const comentarios=(rs||[]).filter(r=>r.comentario);
+
+  const signedUrls={};
+  for(const [qid,fts] of Object.entries({})){
+    signedUrls[qid]=[];
+    for(const ft of fts){
+      const {data:u}=await sb.storage.from('auditoria-fotos').createSignedUrl(ft.storage_path,3600);
+      if(u)signedUrls[qid].push(u.signedUrl);
+    }
+  }
+
+  const respByQ={};(rs||[]).forEach(r=>respByQ[r.questao_id]=r);
+  const fotosByQ={};(fotos||[]).forEach(f=>{if(!fotosByQ[f.questao_id])fotosByQ[f.questao_id]=[];fotosByQ[f.questao_id].push(f);});
+  for(const [qid,fts] of Object.entries(fotosByQ)){
+    signedUrls[qid]=[];
+    for(const ft of fts){
+      const {data:u}=await sb.storage.from('auditoria-fotos').createSignedUrl(ft.storage_path,3600);
+      if(u)signedUrls[qid].push(u.signedUrl);
+    }
+  }
+
+  const nc=QS.filter(q=>q.tp==='av'&&respByQ[q.id]?.resposta==='nao');
+  const gv=nc.filter(q=>q.pen==='Gravíssima');
+  const secs={};QS.forEach(q=>{if(!secs[q.sec])secs[q.sec]={sn:q.sn,qs:[]};secs[q.sec].qs.push(q);});
+  const secsHtml=Object.entries(secs).map(([k,s])=>`
+    <div class="sec-card">
+      <div class="sec-hdr" onclick="toggleSec('csb-${k}',this)"><span class="sec-title">${s.sn}</span><span class="arr">▾</span></div>
+      <div id="csb-${k}">${s.qs.map(q=>buildRQ(q,respByQ[q.id],signedUrls[q.id]||[])).join('')}</div>
+    </div>`).join('');
+
+  const chamadosHtml=chamados.length?`<div class="card" style="margin-bottom:10px">
+    <div class="card-title">🎫 Chamados abertos</div>
+    ${chamados.map(r=>{const q=QS.find(x=>x.id===r.questao_id);return`<div style="padding:6px 0;border-bottom:1px solid var(--br);font-size:12px"><span style="font-weight:700;color:#78350f">${r.chamado}</span> — Perg. ${q?.n}: ${(q?.tx||'').substring(0,60)}…</div>`;}).join('')}
+  </div>`:'';
+
+  const comentariosHtml=comentarios.length?`<div class="card" style="margin-bottom:10px">
+    <div class="card-title">💬 Comentários da gerente</div>
+    ${comentarios.map(r=>{const q=QS.find(x=>x.id===r.questao_id);return`<div style="padding:6px 0;border-bottom:1px solid var(--br);font-size:12px"><span style="font-weight:600">Perg. ${q?.n}:</span> ${r.comentario}</div>`;}).join('')}
+  </div>`:'';
+
+  const ausentesHtml=(ausentes&&ausentes.length)?`<div class="card" style="margin-bottom:10px;border-color:#fca5a5">
+    <div class="card-title" style="color:#991b1b">👥 Colaboradores ausentes</div>
+    ${ausentes.map(a=>`<div style="padding:6px 0;border-bottom:1px solid var(--br);font-size:12px"><span style="font-weight:600">${a.nome_colaborador}</span> — ${a.motivo}</div>`).join('')}
+  </div>`:'';
+
+  const percepcaoHtml=form.percepcao_geral?`<div class="card" style="margin-bottom:10px">
+    <div class="card-title">💭 Percepção geral da gerente</div>
+    <div style="font-size:13px;color:var(--tx);font-style:italic">"${form.percepcao_geral}"</div>
+  </div>`:'';
+
+  render(`<div class="main">
+    <button class="btn btn-sec btn-sm" style="margin-bottom:10px" onclick="showCoordDashboard()">← Voltar ao dashboard</button>
+    <div class="card" style="margin-bottom:10px">
+      <div style="font-size:15px;font-weight:700">${loja?.nome||'Loja'}</div>
+      <div class="txt-sm">${cicloLabel()} · ${form.fill_end?new Date(form.fill_end).toLocaleString('pt-BR'):'—'} · Tempo: ${fmtDur(form.fill_duration_sec)}</div>
+      <div class="score-row" style="margin-top:8px">
+        <div class="score-bar"><div class="score-fill" style="width:${form.score}%;background:${form.score>=80?'#15803d':form.score>=60?'#d97706':'#dc2626'}"></div></div>
+        <div class="score-num">${form.score}</div><span class="txt-sm">/ 100</span>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+        <span class="chip chip-ok">✓ ${form.total_sim} conformes</span>
+        <span class="chip chip-late">✗ ${form.total_nao} não conformes</span>
+        ${gv.length?`<span class="chip" style="background:#fee2e2;color:#7f1d1d">⚠ ${gv.length} Gravíssima(s)</span>`:''}
+        ${chamados.length?`<span class="chip" style="background:#fef3c7;color:#78350f">🎫 ${chamados.length} chamado(s)</span>`:''}
+        ${(ausentes&&ausentes.length)?`<span class="chip" style="background:#fee2e2;color:#991b1b">👥 ${ausentes.length} ausente(s)</span>`:''}
+      </div>
+    </div>
+    ${percepcaoHtml}
+    ${chamadosHtml}
+    ${comentariosHtml}
+    ${ausentesHtml}
+    ${secsHtml}
+    <button class="btn btn-sec" style="width:100%;margin-top:8px" onclick="showCoordDashboard()">← Voltar ao dashboard</button>
+  </div>`);
+}
+window.showCoordReview=showCoordReview;
+
+// =====================================================
+// GLOBALS EXPOSTOS
+// =====================================================
+window.startForm=startForm;window.showGerenteHome=showGerenteHome;
+window.showSupHome=showSupHome;window.showSupReview=showSupReview;
+window.showCoordDashboard=showCoordDashboard;window.showLogin=showLogin;
+window.toggleNotif=toggleNotif;window.markAllRead=markAllRead;
+window.logout=logout;window.openNotif=openNotif;
+
+// =====================================================
+// INIT
+// =====================================================
+initAuth();
+</script>
+</body>
+</html>
