@@ -14,8 +14,8 @@ body{font-family:'Segoe UI',sans-serif;background:var(--g);color:var(--tx);font-
 .logo{display:flex;align-items:center;gap:8px}
 .logo-ic{width:38px;height:38px;background:var(--blue);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .logo-ic svg{width:22px;height:22px}
-.logo-txt .s1{font-size:18px;font-weight:700;color:var(--blue);line-height:1}
-.logo-txt .s2{font-size:9px;color:var(--blue);letter-spacing:2px;opacity:.8}
+.logo-txt .s1{font-size:24px;font-weight:800;color:var(--blue);line-height:1}
+.logo-txt .s2{font-size:11px;color:var(--blue);letter-spacing:3px;opacity:.85}
 .hdr-right{display:flex;align-items:center;gap:10px}
 .notif-btn{position:relative;background:none;border:none;font-size:20px;cursor:pointer;padding:4px}
 .notif-badge{position:absolute;top:0;right:0;background:var(--er);color:#fff;border-radius:50%;width:16px;height:16px;font-size:10px;display:flex;align-items:center;justify-content:center;font-weight:700}
@@ -42,8 +42,8 @@ body{font-family:'Segoe UI',sans-serif;background:var(--g);color:var(--tx);font-
 .login-logo{margin-bottom:20px;display:flex;align-items:center;justify-content:center;gap:10px}
 .login-logo .ic{width:52px;height:52px;background:var(--blue);border-radius:50%;display:flex;align-items:center;justify-content:center}
 .login-logo .ic svg{width:30px;height:30px}
-.login-logo .txt .s1{font-size:26px;font-weight:700;color:var(--blue)}
-.login-logo .txt .s2{font-size:10px;color:var(--blue);letter-spacing:2.5px;opacity:.8}
+.login-logo .txt .s1{font-size:42px;font-weight:800;color:var(--blue);line-height:1}
+.login-logo .txt .s2{font-size:14px;color:var(--blue);letter-spacing:4px;opacity:.85}
 .login-title{font-size:16px;font-weight:600;color:var(--bx);margin-bottom:6px}
 .login-sub{font-size:13px;color:var(--mu);margin-bottom:22px;line-height:1.5}
 .inp{width:100%;padding:11px 14px;border:1px solid var(--br);border-radius:8px;font-size:14px;color:var(--tx);outline:none;transition:border .15s;font-family:inherit}
@@ -186,9 +186,6 @@ input[type=file]{display:none}
 <!-- HEADER (hidden until logged in) -->
 <div class="hdr" id="hdr" style="display:none">
   <div class="logo">
-    <div class="logo-ic">
-      <svg viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="14" fill="white" opacity=".15"/><path d="M22 10.5C22 10.5 20 8 16 8C12 8 9 10.5 9 13C9 15.5 11 16.5 14 17.5C17 18.5 19.5 19.5 19.5 22C19.5 24.5 17 24 15 24C12 24 10 22 10 22" stroke="white" stroke-width="2.8" stroke-linecap="round" fill="none"/><circle cx="16" cy="8" r="1.5" fill="white"/><circle cx="15" cy="24" r="1.5" fill="white"/></svg>
-    </div>
     <div class="logo-txt"><div class="s1">sfera</div><div class="s2">multifranquias</div></div>
   </div>
   <div class="hdr-right">
@@ -489,7 +486,7 @@ async function doLogin(){
 }
 
 function showLoginComSenha(email){
-  const logo=`<div class="ic"><svg viewBox="0 0 32 32" fill="none"><path d="M22 10.5C22 10.5 20 8 16 8C12 8 9 10.5 9 13C9 15.5 11 16.5 14 17.5C17 18.5 19.5 19.5 19.5 22C19.5 24.5 17 24 15 24C12 24 10 22 10 22" stroke="white" stroke-width="2.8" stroke-linecap="round" fill="none"/></svg></div>`;
+  const logo=``;
   render(`<div class="login-wrap"><div class="login-box">
     <div class="login-logo">${logo}<div class="txt"><div class="s1">sfera</div><div class="s2">multifranquias</div></div></div>
     <div class="login-title">Auditoria VIDI</div>
@@ -550,7 +547,6 @@ async function logout(){
 function showLogin(){
   render(`<div class="login-wrap"><div class="login-box">
     <div class="login-logo">
-      <div class="ic"><svg viewBox="0 0 32 32" fill="none"><path d="M22 10.5C22 10.5 20 8 16 8C12 8 9 10.5 9 13C9 15.5 11 16.5 14 17.5C17 18.5 19.5 19.5 19.5 22C19.5 24.5 17 24 15 24C12 24 10 22 10 22" stroke="white" stroke-width="2.8" stroke-linecap="round" fill="none"/></svg></div>
       <div class="txt"><div class="s1">sfera</div><div class="s2">multifranquias</div></div>
     </div>
     <div class="login-title">Auditoria VIDI</div>
