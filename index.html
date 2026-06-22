@@ -471,69 +471,88 @@ async function doLogin(){
   const {data:sup} = await sb.from('supervisoras').select('*').eq('email',email).single();
   if(sup){
     btn.disabled=false; btn.textContent='Entrar';
-    showLoginComSenha(email); return;
+    showLoginComSenha(email, !!sup.senha_criada); return;
   }
 
   // 3. Verifica se é coordenador (tabela profiles)
   const {data:prof} = await sb.from('profiles').select('*').eq('email',email).single();
   if(prof){
     btn.disabled=false; btn.textContent='Entrar';
-    showLoginComSenha(email); return;
+    showLoginComSenha(email, !!prof.senha_criada); return;
   }
 
   btn.disabled=false; btn.textContent='Entrar';
   alert('Email não encontrado. Verifique e tente novamente.');
 }
 
-function showLoginComSenha(email){
-  const logo=``;
+function showLoginComSenha(email, jaTemSenha){
+  const primeiroAcesso = !jaTemSenha;
+  const subtitulo = primeiroAcesso
+    ? `<p style="font-size:12px;color:var(--mu);margin-bottom:12px">Primeiro acesso — crie uma senha para sua conta.</p>`
+    : `<p style="font-size:12px;color:var(--mu);margin-bottom:12px">Digite sua senha para entrar.</p>`;
+  const campoConf = primeiroAcesso
+    ? `<input class="inp" id="login-conf" type="password" placeholder="Confirmar senha" autocomplete="new-password" style="margin-top:8px">`
+    : ``;
   render(`<div class="login-wrap"><div class="login-box">
-    <div class="login-logo">${logo}<div class="txt"><div class="s1">sfera</div><div class="s2">multifranquias</div></div></div>
+    <div class="login-logo"><div class="txt"><div class="s1">sfera</div><div class="s2">multifranquias</div></div></div>
     <div class="login-title">Auditoria VIDI</div>
     <div class="login-sub" style="word-break:break-all;margin-bottom:4px">${email}</div>
-    <p style="font-size:12px;color:var(--mu);margin-bottom:12px">Primeiro acesso? Crie sua senha abaixo.</p>
-    <input class="inp" id="login-senha" type="password" placeholder="Criar ou digitar senha" autocomplete="new-password" style="margin-top:4px">
-    <input class="inp" id="login-conf" type="password" placeholder="Confirmar senha" autocomplete="new-password" style="margin-top:8px">
-    <button class="btn btn-prim" id="login-btn2" onclick="doLoginComSenha('${email}')" style="margin-top:12px">Entrar</button>
+    ${subtitulo}
+    <input class="inp" id="login-senha" type="password" placeholder="${primeiroAcesso?'Criar senha':'Sua senha'}" autocomplete="${primeiroAcesso?'new-password':'current-password'}" style="margin-top:4px">
+    ${campoConf}
+    <button class="btn btn-prim" id="login-btn2" onclick="doLoginComSenha('${email}',${primeiroAcesso})" style="margin-top:12px">Entrar</button>
     <button class="btn btn-sec" onclick="showLogin()" style="margin-top:8px;width:100%">← Trocar email</button>
   </div></div>`);
-  setTimeout(()=>$('login-senha').focus(),100);
+  setTimeout(()=>{const el=$('login-senha');if(el){el.focus();el.addEventListener('keydown',e=>{if(e.key==='Enter'&&!primeiroAcesso)doLoginComSenha(email,false);});}},100);
 }
 
-async function doLoginComSenha(email){
+async function doLoginComSenha(email, primeiroAcesso){
   const senha=$('login-senha').value;
-  const conf=$('login-conf').value;
   if(!senha||senha.length<6){alert('A senha deve ter pelo menos 6 caracteres.');return;}
-  if(senha!==conf){alert('As senhas não coincidem. Digite igual nos dois campos.');return;}
-  const btn=$('login-btn2');btn.disabled=true;btn.textContent='Entrando…';
+  if(primeiroAcesso){
+    const conf=$('login-conf').value;
+    if(senha!==conf){alert('As senhas não coincidem. Digite igual nos dois campos.');return;}
+  }
+  const btn=$('login-btn2');btn.disabled=true;btn.textContent=primeiroAcesso?'Criando…':'Entrando…';
 
-  const showErr=(e)=>{btn.disabled=false;btn.textContent='Entrar';
-    const msg=(e&&(e.message||e.error_description||e.msg))||JSON.stringify(e)||'desconhecido';
-    alert('Erro: '+msg);};
+  const reset=()=>{btn.disabled=false;btn.textContent='Entrar';};
+  const showErr=(msg)=>{reset();alert('Erro: '+msg);};
 
-  // Tenta login primeiro (usuária já tem senha)
-  const {error:errLogin}=await sb.auth.signInWithPassword({email,password:senha});
-  if(!errLogin) return; // sucesso — onAuthStateChange vai rotear
+  // Marca no banco que a senha foi criada (não repetir o fluxo de primeiro acesso)
+  const marcaSenhaCriada=async()=>{
+    await sb.from('supervisoras').update({senha_criada:true}).eq('email',email);
+    await sb.from('profiles').update({senha_criada:true}).eq('email',email);
+  };
 
-  const msgL=(errLogin.message||'').toLowerCase();
-  // Se falhou por credencial inválida, tenta criar conta (primeiro acesso)
-  if(msgL.includes('invalid')){
-    const {data:sd,error:errSignUp}=await sb.auth.signUp({email,password:senha});
-    if(errSignUp){
-      if((errSignUp.message||'').toLowerCase().includes('already')){
-        showErr({message:'Já existe uma senha cadastrada para este email. Digite a senha correta.'});
-      } else {
-        showErr(errSignUp);
-      }
-      return;
-    }
-    // signUp ok — se já veio sessão, onAuthStateChange roteia. Senão, faz login.
-    if(sd&&sd.session) return;
-    const {error:e2}=await sb.auth.signInWithPassword({email,password:senha});
-    if(e2){showErr({message:'Conta criada, mas o login falhou. Tente entrar novamente.'});return;}
+  if(!primeiroAcesso){
+    // Acesso recorrente: apenas autentica
+    const {error}=await sb.auth.signInWithPassword({email,password:senha});
+    if(!error){await marcaSenhaCriada();return;} // sucesso — onAuthStateChange roteia
+    reset();
+    alert('Senha incorreta. Tente novamente. Se você esqueceu a senha, fale com o administrador para redefinir.');
     return;
   }
-  showErr(errLogin);
+
+  // Primeiro acesso: cria a conta
+  // (caso a conta já exista, tenta logar com a senha digitada)
+  const {data:sd,error:errSignUp}=await sb.auth.signUp({email,password:senha});
+  if(errSignUp){
+    const m=(errSignUp.message||'').toLowerCase();
+    if(m.includes('already')){
+      // Conta já existia — tenta logar
+      const {error:e2}=await sb.auth.signInWithPassword({email,password:senha});
+      if(!e2){await marcaSenhaCriada();return;}
+      showErr('Já existe uma senha para este email e ela não confere. Fale com o administrador para redefinir.');
+    } else {
+      showErr(errSignUp.message||'falha ao criar a senha.');
+    }
+    return;
+  }
+  await marcaSenhaCriada();
+  if(sd&&sd.session) return; // já logou
+  // Sem sessão imediata: tenta login
+  const {error:e3}=await sb.auth.signInWithPassword({email,password:senha});
+  if(e3){showErr('Conta criada, mas o login falhou. Verifique se a confirmação de email está desativada no Supabase.');return;}
 }
 
 async function logout(){
