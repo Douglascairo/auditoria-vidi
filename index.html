@@ -379,6 +379,11 @@ function deadlineBanner(){
 // AUTH
 // =====================================================
 async function initAuth(){
+  // Salva o progresso ao fechar/minimizar o app ou bloquear a tela (anti-retrabalho)
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)saveProgress();});
+  window.addEventListener('pagehide',saveProgress);
+  window.addEventListener('beforeunload',saveProgress);
+
   // Listener para login de supervisora/coordenador (com senha)
   sb.auth.onAuthStateChange(async(event,sess)=>{
     if(sess && sess.user.email){
@@ -662,6 +667,7 @@ window.openPhoto=openPhoto;
 // GERENTE HOME
 // =====================================================
 async function showGerenteHome(){
+  stopAutosave();
   render(`<div class="main"><div class="card"><div style="text-align:center;padding:20px;font-size:24px">⏳</div><div style="text-align:center;font-size:13px;color:var(--mu)">Carregando…</div></div></div>`);
   // Se gerente anônimo, usa loja_id direto do perfil
   let lojaIds=[];
@@ -727,6 +733,48 @@ async function showGerenteHome(){
 }
 
 // =====================================================
+// AUTO-SAVE DE PROGRESSO (salva no aparelho para não perder retrabalho)
+// =====================================================
+function draftKey(formId){return 'vidi_draft_'+formId;}
+function saveProgress(){
+  if(!APP._activeFormId)return;
+  try{
+    localStorage.setItem(draftKey(APP._activeFormId), JSON.stringify({
+      ans:APP.ans, obs:APP.obs, coment:APP.coment, chamado:APP.chamado,
+      nomeGerente:APP.nomeGerente, lateReason:APP.lateReason,
+      percepcao:APP.percepcao, ausentes:APP.ausentes, ts:Date.now()
+    }));
+  }catch(e){}
+}
+function restoreProgress(formId){
+  try{
+    const raw=localStorage.getItem(draftKey(formId));
+    if(!raw)return false;
+    const d=JSON.parse(raw);
+    if(d.ans&&Object.keys(d.ans).length)APP.ans=d.ans;
+    if(d.obs)APP.obs=d.obs;
+    if(d.coment)APP.coment=d.coment;
+    if(d.chamado)APP.chamado=d.chamado;
+    if(d.nomeGerente)APP.nomeGerente=d.nomeGerente;
+    if(d.lateReason)APP.lateReason=d.lateReason;
+    if(d.percepcao)APP.percepcao=d.percepcao;
+    if(d.ausentes)APP.ausentes=d.ausentes;
+    return true;
+  }catch(e){return false;}
+}
+function clearDraft(formId){try{localStorage.removeItem(draftKey(formId));}catch(e){}}
+function startAutosave(formId){
+  APP._activeFormId=formId;
+  if(APP._autosaveTimer)clearInterval(APP._autosaveTimer);
+  APP._autosaveTimer=setInterval(saveProgress,2000);
+}
+function stopAutosave(){
+  if(APP._autosaveTimer){clearInterval(APP._autosaveTimer);APP._autosaveTimer=null;}
+  saveProgress();
+  APP._activeFormId=null;
+}
+
+// =====================================================
 // GERENTE FORM
 // =====================================================
 async function startForm(lojaId, formId){
@@ -760,6 +808,9 @@ async function startForm(lojaId, formId){
     if(error){alert('Erro ao criar formulário: '+error.message);return;}
     APP.formulario = newF;
   }
+  // Restaura progresso salvo no aparelho (se houver) — evita retrabalho
+  APP._draftRestored = restoreProgress(APP.formulario.id);
+  startAutosave(APP.formulario.id);
   renderForm();
 }
 
@@ -783,6 +834,7 @@ function renderForm(){
     </div>`).join('');
 
   render(`<div class="main">
+    ${APP._draftRestored?`<div class="dl-banner dl-ok" style="background:#eff9ff;border-color:#7dd3fc"><div class="dl-icon">💾</div><div class="dl-body"><strong>Progresso restaurado!</strong><br>Recuperamos suas respostas de onde você parou. (Atenção: as fotos precisam ser anexadas novamente.)</div></div>`:''}
     <div class="steps">
       <div class="step on"><div class="dot d-on" id="d1">1</div> Preencher</div>
       <div class="sline" id="l1"></div>
@@ -908,6 +960,7 @@ function setAns(id,v){
   ['sim','nao','na'].forEach(x=>{const b=$(`o${x[0]}${x==='na'?'na':''}-${id}`);if(b)b.className='opt'+(APP.ans[id]===x?' s-'+x:'');});
   const ac=$(`ac-${id}`);if(ac)ac.className='alert-gv'+(v==='nao'?' vis':'');
   updScore();
+  saveProgress();
 }
 // expose globally for onclick
 window.setAns=setAns;
@@ -1016,6 +1069,7 @@ async function submitForm(){
         formId);
     }
     APP._supAplicando=false;
+    stopAutosave(); clearDraft(formId);
     alert('✅ Formulário aplicado com sucesso!');
     await showSupHome();
   } else {
@@ -1026,6 +1080,7 @@ async function submitForm(){
         `${APP.profile.nome||APP.profile.email} enviou o formulário do ${cicloLabel()}.${!DENTRO_PRAZO?' ⚠️ Fora do prazo ('+DIAS_ATRASO+'d).':''}`,
         formId);
     }
+    stopAutosave(); clearDraft(formId);
     alert('✅ Formulário enviado com sucesso!');
     await showGerenteHome();
   }
@@ -1035,6 +1090,7 @@ async function submitForm(){
 // SUPERVISORA HOME
 // =====================================================
 async function showSupHome(){
+  stopAutosave();
   render(`<div class="main"><div class="card" style="text-align:center;padding:30px;font-size:13px;color:var(--mu)">Carregando…</div></div>`);
   const supId=APP.profile.supervisora_id;
   const {data:lojas}=await sb.from('lojas').select('*').eq('supervisora_id',supId).order('nome');
