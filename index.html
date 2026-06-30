@@ -1273,13 +1273,29 @@ window.showSupReview=showSupReview;
 function buildRQ(q,resp,urls,ajusteUrls){
   ajusteUrls=ajusteUrls||[];
   const ajusteFotosHtml=ajusteUrls.length?`<div style="margin-top:6px"><div style="font-size:11px;font-weight:600;color:#166534;margin-bottom:4px">📷 Fotos da comprovação:</div><div class="ph-grid">${ajusteUrls.map(u=>`<div class="ph-thumb" style="cursor:pointer" onclick="openPhoto('${u}')"><img src="${u}" loading="lazy"></div>`).join('')}</div></div>`:'';
+  // Caixa de revisão da supervisora — disponível em TODAS as perguntas (respostas e fotos)
+  const supStatusTag=resp?.sup_status==='ok'?`<span style="font-size:11px;color:#15803d;font-weight:600">✓ validado</span>`:resp?.sup_status==='nok'?`<span style="font-size:11px;color:#991b1b;font-weight:600">⚠ ajuste pedido</span>`:'';
+  const supBox=`<div class="sup-box">
+    <div class="sup-lbl">💬 Orientação / questionamento (deixe em branco se estiver OK):</div>
+    <textarea class="sup-ta" id="sc-${q.id}" placeholder="Escreva aqui se quiser questionar ou orientar um ajuste…">${resp?.sup_comentario||''}</textarea>
+    <div class="sup-btns">
+      <button class="sbtn sbtn-ok" onclick="setSupAns(${q.id},'ok')">✓ Validar</button>
+      <button class="sbtn sbtn-nok" onclick="setSupAns(${q.id},'nok')">⚠ Pedir ajuste</button>
+    </div>
+    ${(resp?.gerente_ajuste||ajusteUrls.length)?`<div style="margin-top:8px;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:6px 8px;font-size:12px;color:#166534">${resp?.gerente_ajuste?`<strong>🔧 Ajuste feito pela gerente:</strong><br>${resp.gerente_ajuste}`:''}${ajusteFotosHtml}</div>`:''}
+  </div>`;
+
   if(q.tp==='foto'){
     const thumbs=urls.map(u=>`<div class="ph-thumb" style="cursor:pointer" onclick="openPhoto('${u}')"><img src="${u}" loading="lazy"></div>`).join('');
     return`<div class="q${urls.length?' foto-done':''}">
-      <div class="q-meta"><span class="pb pb-Fo">📷 FOTO</span> Pergunta ${q.n}</div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div class="q-meta"><span class="pb pb-Fo">📷 FOTO</span> Pergunta ${q.n}</div>
+        ${supStatusTag}
+      </div>
       <div class="q-text">${q.tx}</div>
       <div style="font-size:12px;color:var(--mu);margin-top:4px">${urls.length} foto(s) ${urls.length>=q.min?'✅':'⚠️ mín: '+q.min}</div>
       <div class="ph-grid">${thumbs}</div>
+      ${supBox}
     </div>`;
   }
   const a=resp?.resposta||'—';
@@ -1297,24 +1313,25 @@ function buildRQ(q,resp,urls,ajusteUrls){
       <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:4px">
         ${q.pen?`<span class="pb ${penCls(q.pen)}">${q.pen}${q.pts?' · '+q.pts+'pts':' · CRÍTICO'}</span>`:''}
         <span style="font-size:12px;font-weight:700;${a==='sim'?'color:#15803d':a==='nao'?'color:#991b1b':'color:var(--mu)'}">${al}</span>
-        ${resp?.sup_status==='ok'?`<span style="font-size:11px;color:#15803d;font-weight:600">✓ validado</span>`:resp?.sup_status==='nok'?`<span style="font-size:11px;color:#991b1b;font-weight:600">⚠ urgente</span>`:''}
+        ${supStatusTag}
       </div>
     </div>
-    ${a==='nao'?`<div class="sup-box">
-      <div class="sup-lbl">💬 Orientação / comentário:</div>
-      <textarea class="sup-ta" id="sc-${q.id}" placeholder="Ação, prazo, responsável…">${resp?.sup_comentario||''}</textarea>
-      <div class="sup-btns">
-        <button class="sbtn sbtn-ok" onclick="setSupAns(${q.id},'ok')">✓ Validar</button>
-        <button class="sbtn sbtn-nok" onclick="setSupAns(${q.id},'nok')">⚠ Urgente</button>
-      </div>
-      ${(resp?.gerente_ajuste||ajusteUrls.length)?`<div style="margin-top:8px;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:6px 8px;font-size:12px;color:#166534">${resp?.gerente_ajuste?`<strong>🔧 Ajuste feito pela gerente:</strong><br>${resp.gerente_ajuste}`:''}${ajusteFotosHtml}</div>`:''}
-    </div>`:''}
+    ${supBox}
   </div>`;
 }
 
 async function setSupAns(qid,val){
   const formId=window._reviewFormId;
-  await sb.from('respostas').update({sup_status:val}).eq('formulario_id',formId).eq('questao_id',qid);
+  // salva também o comentário digitado, se houver (para fotos/itens sem registro)
+  const ta=$(`sc-${qid}`);
+  const payload={formulario_id:formId,questao_id:qid,sup_status:val};
+  if(ta&&ta.value.trim())payload.sup_comentario=ta.value;
+  await sb.from('respostas').upsert(payload,{onConflict:'formulario_id,questao_id'});
+  // feedback visual no botão
+  const box=ta?ta.closest('.sup-box'):null;
+  if(box){const b1=box.querySelector('.sbtn-ok'),b2=box.querySelector('.sbtn-nok');
+    if(b1)b1.style.opacity=val==='ok'?'1':'.4';
+    if(b2)b2.style.opacity=val==='nok'?'1':'.4';}
 }
 window.setSupAns=setSupAns;
 
@@ -1362,7 +1379,7 @@ async function requestAdjustments(formId){
   for(const ta of qas){
     const qid=parseInt(ta.id.replace('sc-',''));
     if(ta.value.trim()){
-      await sb.from('respostas').update({sup_comentario:ta.value}).eq('formulario_id',formId).eq('questao_id',qid);
+      await sb.from('respostas').upsert({formulario_id:formId,questao_id:qid,sup_comentario:ta.value},{onConflict:'formulario_id,questao_id'});
       count++;
     }
   }
@@ -1401,9 +1418,8 @@ async function showGerenteAdjust(formId){
   const {data:loja}=await sb.from('lojas').select('*').eq('id',form.loja_id).single();
   const respByQ={};(rs||[]).forEach(r=>respByQ[r.questao_id]=r);
 
-  // Itens com orientação da supervisora (não conformes que ela comentou ou marcou)
-  const itens=QS.filter(q=>{const r=respByQ[q.id];return r&&(r.sup_comentario||r.sup_status==='nok'||r.sup_status==='ok'&&r.resposta==='nao');});
-  const pendentes=QS.filter(q=>{const r=respByQ[q.id];return r&&r.resposta==='nao'&&(r.sup_comentario||r.sup_status);});
+  // Itens que a supervisora questionou (qualquer pergunta: resposta OU foto)
+  const pendentes=QS.filter(q=>{const r=respByQ[q.id];return r&&(r.sup_comentario||r.sup_status==='nok');});
 
   const itensHtml=pendentes.length?pendentes.map(q=>{
     const r=respByQ[q.id];
