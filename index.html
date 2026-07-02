@@ -386,8 +386,11 @@ async function initAuth(){
 
   // Listener para login de supervisora/coordenador (com senha)
   sb.auth.onAuthStateChange(async(event,sess)=>{
-    if(sess && sess.user.email){
-      APP.session = sess;
+    if(!sess || !sess.user.email)return;
+    APP.session = sess; // mantém o token atualizado
+    // Só roteia no login INICIAL. Em renovação de token (troca de aba), NÃO re-renderiza,
+    // senão a supervisora perde a tela de revisão e volta pra lista de lojas.
+    if(event==='SIGNED_IN' && !APP.profile){
       await loadProfile();
       route(); pollNotifs();
     }
@@ -653,12 +656,37 @@ function openPhoto(url){
   if(!ov){
     ov=document.createElement('div');
     ov.id='photo-lightbox';
-    ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;cursor:zoom-out';
-    ov.onclick=()=>{ov.style.display='none';};
+    ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9999;display:none;align-items:center;justify-content:center;overflow:hidden;touch-action:none';
+    ov.innerHTML=`<img id="plb-img" style="max-width:95vw;max-height:90vh;object-fit:contain;transform-origin:center;user-select:none;-webkit-user-drag:none;cursor:zoom-in">
+      <div style="position:absolute;top:14px;right:16px;display:flex;gap:8px">
+        <button id="plb-out" style="width:44px;height:44px;border-radius:8px;border:none;background:rgba(255,255,255,.92);font-size:26px;font-weight:700;cursor:pointer">−</button>
+        <button id="plb-in" style="width:44px;height:44px;border-radius:8px;border:none;background:rgba(255,255,255,.92);font-size:26px;font-weight:700;cursor:pointer">+</button>
+        <button id="plb-close" style="width:44px;height:44px;border-radius:8px;border:none;background:rgba(255,255,255,.92);font-size:20px;cursor:pointer">✕</button>
+      </div>
+      <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#fff;font-size:12px;opacity:.65">🔍 Role o mouse ou use + / − para dar zoom · arraste para mover · ✕ fecha</div>`;
     document.body.appendChild(ov);
+    const img=ov.querySelector('#plb-img');
+    const apply=()=>{
+      ov._s=Math.max(1,Math.min(ov._s||1,6));
+      if(ov._s===1){ov._tx=0;ov._ty=0;}
+      img.style.transform=`translate(${ov._tx||0}px,${ov._ty||0}px) scale(${ov._s||1})`;
+      img.style.cursor=(ov._s>1)?'grab':'zoom-in';
+    };
+    ov._apply=apply;
+    ov.querySelector('#plb-in').onclick=e=>{e.stopPropagation();ov._s=(ov._s||1)+0.5;apply();};
+    ov.querySelector('#plb-out').onclick=e=>{e.stopPropagation();ov._s=(ov._s||1)-0.5;apply();};
+    ov.querySelector('#plb-close').onclick=e=>{e.stopPropagation();ov.style.display='none';};
+    img.onclick=e=>{e.stopPropagation();ov._s=((ov._s||1)>1)?1:2.5;apply();};
+    img.onwheel=e=>{e.preventDefault();ov._s=(ov._s||1)+(e.deltaY<0?0.4:-0.4);apply();};
+    img.onmousedown=e=>{if((ov._s||1)<=1)return;e.preventDefault();ov._drag=true;ov._sx=e.clientX-(ov._tx||0);ov._sy=e.clientY-(ov._ty||0);img.style.cursor='grabbing';};
+    window.addEventListener('mousemove',e=>{if(!ov._drag)return;ov._tx=e.clientX-ov._sx;ov._ty=e.clientY-ov._sy;apply();});
+    window.addEventListener('mouseup',()=>{if(ov._drag){ov._drag=false;apply();}});
+    ov.onclick=e=>{if(e.target===ov)ov.style.display='none';};
   }
-  ov.innerHTML=`<img src="${url}" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:8px">
-    <div style="position:absolute;top:16px;right:20px;color:#fff;font-size:34px;line-height:1;cursor:pointer">×</div>`;
+  // novo photo: zera o zoom
+  ov._s=1;ov._tx=0;ov._ty=0;
+  ov.querySelector('#plb-img').src=url;
+  ov._apply();
   ov.style.display='flex';
 }
 window.openPhoto=openPhoto;
@@ -1495,6 +1523,7 @@ window.requestAdjustments=requestAdjustments;
 async function showGerenteAdjust(formId){
   render(`<div class="main"><div class="card" style="text-align:center;padding:30px;color:var(--mu)">Carregando ajustes…</div></div>`);
   Object.keys(ADJPHOTOS).forEach(k=>delete ADJPHOTOS[k]);
+  window._adjFormId=formId;
   const {data:form}=await sb.from('formularios').select('*').eq('id',formId).single();
   const {data:rs}=await sb.from('respostas').select('*').eq('formulario_id',formId);
   const {data:loja}=await sb.from('lojas').select('*').eq('id',form.loja_id).single();
@@ -1537,35 +1566,68 @@ async function showGerenteAdjust(formId){
 }
 window.showGerenteAdjust=showGerenteAdjust;
 
-function handleAdjPhotos(input,id){
+async function handleAdjPhotos(input,id){
   if(!ADJPHOTOS[id])ADJPHOTOS[id]=[];
-  Array.from(input.files).forEach(f=>ADJPHOTOS[id].push(f));
-  renderAdjPrevs(id);
+  const files=Array.from(input.files);
+  input.value='';
+  for(const f of files){
+    const item={url:URL.createObjectURL(f),path:null,status:'uploading'};
+    ADJPHOTOS[id].push(item);
+    renderAdjPrevs(id);
+    try{
+      const blob=await compressImage(f);
+      const path=`${window._adjFormId}/ajuste-${id}-${Date.now()}-${Math.random().toString(36).slice(2,6)}.jpg`;
+      const {error}=await sb.storage.from('auditoria-fotos').upload(path,blob,{upsert:true,contentType:'image/jpeg'});
+      if(error)throw error;
+      item.path=path;item.status='done';
+    }catch(e){item.status='error';}
+    renderAdjPrevs(id);
+  }
 }
 window.handleAdjPhotos=handleAdjPhotos;
 
 function renderAdjPrevs(id){
-  const files=ADJPHOTOS[id]||[];
-  const prev=$(`aprev-${id}`);if(prev)prev.innerHTML=files.map((f,i)=>`<div class="ph-thumb"><img src="${URL.createObjectURL(f)}"><div class="ph-rm" onclick="rmAdjPhoto(${id},${i})">×</div></div>`).join('');
-  const pz=$(`apz-${id}`);if(pz){pz.className='pz'+(files.length?' ok':'');pz.querySelector('.pz-icon').textContent=files.length?'✅':'📷';}
+  const items=ADJPHOTOS[id]||[];
+  const prev=$(`aprev-${id}`);
+  if(prev)prev.innerHTML=items.map((it,i)=>`<div class="ph-thumb" style="position:relative">
+    ${it.url?`<img src="${it.url}">`:''}
+    ${it.status==='uploading'?`<div style="position:absolute;inset:0;background:rgba(0,0,0,.5);color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px">enviando…</div>`:''}
+    ${it.status==='error'?`<div style="position:absolute;inset:0;background:rgba(220,38,38,.75);color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;text-align:center;padding:2px">falhou<br>remova e<br>refaça</div>`:''}
+    ${it.status==='done'?`<div style="position:absolute;bottom:2px;right:2px;background:#15803d;color:#fff;border-radius:50%;width:15px;height:15px;font-size:10px;display:flex;align-items:center;justify-content:center">✓</div>`:''}
+    <div class="ph-rm" onclick="rmAdjPhoto(${id},${i})">×</div>
+  </div>`).join('');
+  const done=items.filter(x=>x.status==='done').length;
+  const pz=$(`apz-${id}`);if(pz){pz.className='pz'+(done?' ok':'');const ic=pz.querySelector('.pz-icon');if(ic)ic.textContent=done?'✅':'📷';}
 }
-window.rmAdjPhoto=(id,i)=>{if(ADJPHOTOS[id])ADJPHOTOS[id].splice(i,1);renderAdjPrevs(id);};
+window.rmAdjPhoto=async(id,i)=>{
+  const it=(ADJPHOTOS[id]||[])[i];
+  if(it&&it.path){try{await sb.storage.from('auditoria-fotos').remove([it.path]);}catch(e){}}
+  if(ADJPHOTOS[id])ADJPHOTOS[id].splice(i,1);
+  renderAdjPrevs(id);
+};
 
 async function resendAdjustments(formId){
+  // Confere se há fotos ainda enviando
+  let subindo=0;Object.keys(ADJPHOTOS).forEach(qid=>(ADJPHOTOS[qid]||[]).forEach(x=>{if(x.status==='uploading')subindo++;}));
+  if(subindo>0){alert(`⏳ Ainda há ${subindo} foto(s) sendo enviada(s). Aguarde alguns segundos e tente novamente.`);return;}
+  const rbtn=document.querySelectorAll('.btn-prim');rbtn.forEach(b=>{b.disabled=true;b.textContent='Reenviando…';});
+
   // Salva o que a gerente ajustou em cada item
   const tas=document.querySelectorAll('[id^="ga-"]');
   for(const ta of tas){
     const qid=parseInt(ta.id.replace('ga-',''));
     await sb.from('respostas').update({gerente_ajuste:ta.value||null}).eq('formulario_id',formId).eq('questao_id',qid);
   }
-  // Sobe as fotos de comprovação
+  // Registra as fotos de comprovação (já enviadas ao storage durante o preenchimento)
+  const fotoRows=[];
   for(const qid of Object.keys(ADJPHOTOS)){
-    for(let i=0;i<ADJPHOTOS[qid].length;i++){
-      const file=ADJPHOTOS[qid][i];
-      const path=`${formId}/ajuste-${qid}-${Date.now()}-${i}.jpg`;
-      const {error:ue}=await sb.storage.from('auditoria-fotos').upload(path,file,{upsert:true});
-      if(!ue)await sb.from('fotos').insert({formulario_id:formId,questao_id:parseInt(qid),tipo:'ajuste',storage_path:path});
+    for(const it of (ADJPHOTOS[qid]||[])){
+      if(it.status==='done'&&it.path)fotoRows.push({formulario_id:formId,questao_id:parseInt(qid),tipo:'ajuste',storage_path:it.path});
     }
+  }
+  if(fotoRows.length){
+    await sb.from('fotos').delete().eq('formulario_id',formId).eq('tipo','ajuste');
+    await sb.from('fotos').insert(fotoRows);
   }
   await sb.from('formularios').update({status:'reenviado'}).eq('id',formId);
 
