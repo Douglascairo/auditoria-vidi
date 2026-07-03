@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Auditoria VIDI — Sfera Multifranquias</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -726,7 +729,7 @@ async function showGerenteHome(){
         const f=formByLoja[l.id];
         const st=f?f.status:null;
         const statusChip = !f?`<span class="chip chip-pend">⏳ Não preenchido</span>`
-          :st==='revisado'?`<span class="chip chip-rev">✅ Concluído — ${f.score}pts</span>`
+          :st==='revisado'?`<span class="chip chip-rev">✅ Concluído — ${f.score}%</span>`
           :st==='enviado'?`<span class="chip chip-ok">📤 Aguardando revisão</span>`
           :st==='reenviado'?`<span class="chip chip-ok" style="background:#dbeafe;color:#1e40af">↻ Reenviado — aguarda supervisora</span>`
           :st==='ajustes_solicitados'?`<span class="chip" style="background:#fed7aa;color:#9a3412">🔧 Ajustes solicitados</span>`
@@ -752,7 +755,7 @@ async function showGerenteHome(){
       ${forms.filter(f=>f.status==='revisado').map(f=>{
         const l=lojas.find(x=>x.id===f.loja_id);
         return`<div style="padding:10px 0;border-bottom:1px solid var(--br)">
-          <div style="font-size:13px;font-weight:600">${l?l.nome:'Loja'} — <span style="color:${f.score>=80?'#15803d':f.score>=60?'#d97706':'#dc2626'}">${f.score} pts</span></div>
+          <div style="font-size:13px;font-weight:600">${l?l.nome:'Loja'} — <span style="color:${f.score>=80?'#15803d':f.score>=60?'#d97706':'#dc2626'}">${f.score}%</span></div>
           ${f.is_late?`<div style="font-size:11px;color:#991b1b;margin-top:2px">Preenchido com ${f.dias_atraso} dia(s) de atraso — ${f.sup_julgamento_atraso||'pendente análise'}</div>`:''}
           ${f.sup_comentario_atraso?`<div style="font-size:12px;color:#4c1d95;margin-top:4px;background:#ede9fe;padding:6px 8px;border-radius:6px">💬 ${f.sup_comentario_atraso}</div>`:''}
         </div>`;}).join('')}
@@ -895,7 +898,7 @@ function renderForm(){
         </div>
         <div class="score-row" style="margin:0;min-width:160px">
           <div class="score-bar"><div class="score-fill" id="sf" style="width:0%"></div></div>
-          <div class="score-num" id="sv">—</div><span class="txt-sm">/ 100</span>
+          <div class="score-num" id="sv">—</div><span class="txt-sm">% pontuado</span>
         </div>
       </div>
     </div>
@@ -1082,11 +1085,14 @@ window.rmPhoto=async(id,i,min)=>{
 
 function updScore(){
   const avQs=QS.filter(q=>q.tp==='av'&&q.pts);
-  let tot=0,ans=0;
-  avQs.forEach(q=>{if(APP.ans[q.id]){ans++;if(APP.ans[q.id]==='sim')tot+=q.pts;}});
+  let earned=0,possible=0,ans=0;
+  avQs.forEach(q=>{const a=APP.ans[q.id];
+    if(a==='sim'){earned+=q.pts;possible+=q.pts;ans++;}
+    else if(a==='nao'){possible+=q.pts;ans++;}});
+  const pct=possible>0?earned/possible*100:0;
   const sf=$('sf'),sv=$('sv');
-  if(sf){sf.style.width=(ans?Math.min(tot,100)+'%':'0%');sf.style.background=tot>=80?'#15803d':tot>=60?'#d97706':'#dc2626';}
-  if(sv)sv.textContent=ans?tot.toFixed(1):'—';
+  if(sf){sf.style.width=(ans?pct+'%':'0%');sf.style.background=pct>=80?'#15803d':pct>=60?'#d97706':'#dc2626';}
+  if(sv)sv.textContent=ans?pct.toFixed(0):'—';
 }
 
 function toggleSec(id,hdr){
@@ -1134,8 +1140,13 @@ async function submitForm(){
   }
   // 3. Calcula score
   const avQs=QS.filter(q=>q.tp==='av'&&q.pts);
-  let score=0,nsim=0,nnao=0,nna=0;
-  avQs.forEach(q=>{const a=APP.ans[q.id];if(a==='sim'){score+=q.pts;nsim++;}else if(a==='nao')nnao++;else if(a==='na')nna++;});
+  let earned=0,possible=0,nsim=0,nnao=0,nna=0;
+  avQs.forEach(q=>{const a=APP.ans[q.id];
+    if(a==='sim'){earned+=q.pts;possible+=q.pts;nsim++;}
+    else if(a==='nao'){possible+=q.pts;nnao++;}
+    else if(a==='na')nna++;});
+  // Score = % pontuado (N/A não conta). Tudo conforme = 100%.
+  const score=possible>0?Math.round(earned/possible*1000)/10:0;
   // 4. Atualiza formulário
   const fillEnd=new Date();
   const fillDur=Math.floor((fillEnd-APP.fillStart)/1000);
@@ -1232,7 +1243,7 @@ async function showSupHome(){
       :(lojas||[]).map(l=>{
         const f=fByLoja[l.id];
         const status=!f?`<span class="chip chip-pend">⏳ Não preenchido</span>`
-          :f.status==='revisado'?`<span class="chip chip-rev">✅ ${f.preenchido_por==='supervisora'?'Aplicado pela sup.':'Concluído'} (${f.score}pts)</span>`
+          :f.status==='revisado'?`<span class="chip chip-rev">✅ ${f.preenchido_por==='supervisora'?'Aplicado pela sup.':'Concluído'} (${f.score}%)</span>`
           :f.status==='enviado'?`<span class="chip chip-ok" style="background:#fef3c7;color:#78350f">📤 Aguarda revisão</span>`
           :f.status==='reenviado'?`<span class="chip chip-ok" style="background:#dbeafe;color:#1e40af">↻ Reenviado — conferir</span>`
           :f.status==='ajustes_solicitados'?`<span class="chip" style="background:#fed7aa;color:#9a3412">🔧 Aguarda correção da gerente</span>`
@@ -1349,7 +1360,7 @@ async function showSupReview(formId){
       <div class="txt-sm">${cicloLabel()} · Enviado: ${form.fill_end?new Date(form.fill_end).toLocaleString('pt-BR'):'—'} · Tempo preench.: ${fmtDur(form.fill_duration_sec)}</div>
       <div class="score-row" style="margin-top:8px">
         <div class="score-bar"><div class="score-fill" style="width:${form.score}%;background:${form.score>=80?'#15803d':form.score>=60?'#d97706':'#dc2626'}"></div></div>
-        <div class="score-num">${form.score}</div><span class="txt-sm">/ 100</span>
+        <div class="score-num">${form.score}%</div><span class="txt-sm">pontuado</span>
       </div>
       <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
         <span class="chip chip-ok">✓ ${form.total_sim} conformes</span>
@@ -1794,7 +1805,7 @@ async function showCoordDashboard(){
 
   const lojaRows=(lojas||[]).map(l=>{
     const f=fByLoja[l.id];
-    const statusChip=!f?`<span class="chip chip-pend">⏳</span>`:f.status==='revisado'?`<span class="chip chip-rev">✅ ${f.score}pts</span>`:f.status==='enviado'?`<span class="chip" style="background:#fef3c7;color:#78350f">📤</span>`:`<span class="chip chip-pend">📝</span>`;
+    const statusChip=!f?`<span class="chip chip-pend">⏳</span>`:f.status==='revisado'?`<span class="chip chip-rev">✅ ${f.score}%</span>`:f.status==='enviado'?`<span class="chip" style="background:#fef3c7;color:#78350f">📤</span>`:`<span class="chip chip-pend">📝</span>`;
     return`<tr>
       <td><strong>${l.nome}</strong><br><span class="txt-sm">${l.cidade}/${l.estado}</span></td>
       <td class="txt-sm">${l.supervisoras?.nome||'—'}</td>
@@ -1901,7 +1912,7 @@ async function showCoordReview(formId){
       <div class="txt-sm">${cicloLabel()} · ${form.fill_end?new Date(form.fill_end).toLocaleString('pt-BR'):'—'} · Tempo: ${fmtDur(form.fill_duration_sec)}</div>
       <div class="score-row" style="margin-top:8px">
         <div class="score-bar"><div class="score-fill" style="width:${form.score}%;background:${form.score>=80?'#15803d':form.score>=60?'#d97706':'#dc2626'}"></div></div>
-        <div class="score-num">${form.score}</div><span class="txt-sm">/ 100</span>
+        <div class="score-num">${form.score}%</div><span class="txt-sm">pontuado</span>
       </div>
       <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
         <span class="chip chip-ok">✓ ${form.total_sim} conformes</span>
