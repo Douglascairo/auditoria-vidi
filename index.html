@@ -216,8 +216,8 @@ input[type=file]{display:none}
 // =====================================================
 // CONFIG — substitua com as chaves do seu projeto Supabase
 // =====================================================
-const SUPABASE_URL = 'https://uhnshyrdtlpdorkmaayt.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVobnNoeXJkdGxwZG9ya21hYXl0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1NTE4NzUsImV4cCI6MjA5NzEyNzg3NX0.QvMRvgk5MaHgcwrCw7i2TbNw4A7I_YeChzIZwUt0aWA';
+const SUPABASE_URL = 'https://wuzcsbwkjxhfzdufttyd.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_-5mlWgV_K2nLjIg0Ea6Zww_ySRNyW83';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // =====================================================
@@ -1378,10 +1378,9 @@ async function showSupReview(formId){
     ${secsHtml}
     ${form.status==='revisado'?`<div class="card" style="text-align:center;background:#f0fdf4;border-color:#86efac"><div style="font-size:18px">✅</div><div style="font-size:13px;font-weight:600;color:#15803d">Revisão concluída</div><div class="txt-sm">em ${form.review_end?new Date(form.review_end).toLocaleString('pt-BR'):'—'}</div></div>`
     :form.status==='ajustes_solicitados'?`<div class="card" style="text-align:center;background:#fff7ed;border-color:#fdba74"><div style="font-size:18px">🔧</div><div style="font-size:13px;font-weight:600;color:#9a3412">Ajustes solicitados</div><div class="txt-sm">Aguardando a gerente corrigir e reenviar.</div></div>`
-    :`<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap">
-      <button class="btn btn-sec" onclick="showSupHome()">← Voltar</button>
-      <button class="btn" style="background:#fed7aa;color:#9a3412" onclick="requestAdjustments('${formId}')">📩 Solicitar ajustes</button>
-      <button class="btn btn-prim" onclick="approveReview('${formId}')">${form.status==='reenviado'?'✓ Concluir (executado)':'✓ Aprovar e concluir'}</button>
+    :`<div style="margin-top:16px">
+      <button class="btn btn-prim" style="width:100%;font-size:15px;padding:14px;background:#15803d" onclick="finalizarConferencia('${formId}')">✅ Finalizar conferência</button>
+      <button class="btn btn-sec" style="width:100%;margin-top:8px" onclick="showSupHome()">← Voltar sem finalizar</button>
     </div>`}
   </div>`);
 
@@ -1527,6 +1526,22 @@ async function requestAdjustments(formId){
   await showSupHome();
 }
 window.requestAdjustments=requestAdjustments;
+
+async function finalizarConferencia(formId){
+  // Verifica se há algum campo de orientação preenchido (pedido de ajuste)
+  const qas=document.querySelectorAll('[id^="sc-"]');
+  let temAjuste=false;
+  qas.forEach(el=>{if(el.value&&el.value.trim())temAjuste=true;});
+
+  if(temAjuste){
+    if(!confirm('Você escreveu orientações/ajustes. Deseja solicitar ajustes para a gerente corrigir?'))return;
+    await requestAdjustments(formId);
+  } else {
+    if(!confirm('Nenhum ajuste solicitado. Deseja aprovar e concluir a conferência?'))return;
+    await approveReview(formId);
+  }
+}
+window.finalizarConferencia=finalizarConferencia;
 
 // =====================================================
 // GERENTE — VER AJUSTES E CORRIGIR
@@ -1753,6 +1768,22 @@ async function showCoordDashboard(){
   const {data:lojas}=await sb.from('lojas').select('*,supervisoras(nome)');
   const {data:forms}=await sb.from('formularios').select('*').eq('ciclo',CICLO.n);
 
+  // Conta fotos de ciclos anteriores (para o aviso de limpeza)
+  let nFotosAntigas=0;
+  try{
+    const {data:fa}=await sb.from('fotos').select('id,formularios!inner(ciclo)').lt('formularios.ciclo',CICLO.n);
+    nFotosAntigas=(fa||[]).length;
+  }catch(e){}
+  const limpezaHtml=nFotosAntigas>0?`<div class="card" style="border-color:#fdba74;background:#fff7ed;margin-bottom:10px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+      <div>
+        <div style="font-weight:700;color:#9a3412">🗑 ${nFotosAntigas} foto(s) de ciclos anteriores</div>
+        <div class="txt-sm">Ocupam ~${(nFotosAntigas*0.2).toFixed(0)} MB. Limpe ao iniciar o novo ciclo para manter o espaço livre e evitar bloqueios.</div>
+      </div>
+      <button class="btn" style="background:#ea580c;color:#fff" onclick="limparFotosAntigas()">Limpar agora</button>
+    </div>
+  </div>`:'';
+
   const fByLoja={};(forms||[]).forEach(f=>fByLoja[f.loja_id]=f);
   const supStats={};(sups||[]).forEach(s=>{supStats[s.id]={nome:s.nome,lojas:0,enviados:0,revisados:0,atrasados:0,scores:[]};});
   (lojas||[]).forEach(l=>{if(supStats[l.supervisora_id])supStats[l.supervisora_id].lojas++;});
@@ -1814,6 +1845,7 @@ async function showCoordDashboard(){
     </tr>`;}).join('');
 
   render(`<div class="main">
+    ${limpezaHtml}
     <div class="card">
       <div class="card-title">🎯 Dashboard Coordenação — ${cicloLabel()}</div>
       <div class="sum-grid">
@@ -1842,6 +1874,31 @@ async function showCoordDashboard(){
     </div>
   </div>`);
 }
+
+// =====================================================
+// LIMPEZA DE FOTOS DE CICLOS ANTERIORES
+// =====================================================
+async function limparFotosAntigas(){
+  const {data:antigas,error}=await sb.from('fotos').select('id,storage_path,formularios!inner(ciclo)').lt('formularios.ciclo',CICLO.n);
+  if(error){alert('Erro ao buscar fotos: '+error.message);return;}
+  if(!antigas||!antigas.length){alert('Não há fotos de ciclos anteriores para limpar. 👍');return;}
+  const mb=(antigas.length*0.2).toFixed(0);
+  if(!confirm(`Isso vai apagar ${antigas.length} foto(s) de ciclos anteriores (libera ~${mb} MB).\n\nOs formulários e as notas continuam salvos — só as fotos antigas são removidas.\n\nContinuar?`))return;
+  // 1. Remove os arquivos do Storage (em lotes de 100)
+  const paths=antigas.map(f=>f.storage_path).filter(Boolean);
+  for(let i=0;i<paths.length;i+=100){
+    const {error:e}=await sb.storage.from('auditoria-fotos').remove(paths.slice(i,i+100));
+    if(e)console.warn('Falha ao remover lote do storage:',e.message);
+  }
+  // 2. Remove as linhas da tabela (em lotes de 200)
+  const ids=antigas.map(f=>f.id);
+  for(let i=0;i<ids.length;i+=200){
+    await sb.from('fotos').delete().in('id',ids.slice(i,i+200));
+  }
+  alert(`✅ ${antigas.length} foto(s) antigas removidas — espaço liberado!`);
+  showCoordDashboard();
+}
+window.limparFotosAntigas=limparFotosAntigas;
 
 // =====================================================
 // COORDENADOR — VER FORMULÁRIO DE LOJA
@@ -1927,7 +1984,12 @@ async function showCoordReview(formId){
     ${comentariosHtml}
     ${ausentesHtml}
     ${secsHtml}
-    <button class="btn btn-sec" style="width:100%;margin-top:8px" onclick="showCoordDashboard()">← Voltar ao dashboard</button>
+    ${form.status==='revisado'?`<div class="card" style="text-align:center;background:#f0fdf4;border-color:#86efac;margin-top:8px"><div style="font-size:18px">✅</div><div style="font-size:13px;font-weight:600;color:#15803d">Revisão concluída</div><div class="txt-sm">em ${form.review_end?new Date(form.review_end).toLocaleString('pt-BR'):'—'}</div></div>`
+    :form.status==='ajustes_solicitados'?`<div class="card" style="text-align:center;background:#fff7ed;border-color:#fdba74;margin-top:8px"><div style="font-size:18px">🔧</div><div style="font-size:13px;font-weight:600;color:#9a3412">Ajustes solicitados</div><div class="txt-sm">Aguardando a gerente corrigir e reenviar.</div></div>`
+    :(form.status==='enviado'||form.status==='reenviado')?`<div style="margin-top:16px">
+      <button class="btn btn-prim" style="width:100%;font-size:15px;padding:14px;background:#15803d" onclick="finalizarConferencia('${formId}')">✅ Finalizar conferência</button>
+      <button class="btn btn-sec" style="width:100%;margin-top:8px" onclick="showCoordDashboard()">← Voltar sem finalizar</button>
+    </div>`:`<button class="btn btn-sec" style="width:100%;margin-top:8px" onclick="showCoordDashboard()">← Voltar ao dashboard</button>`}
   </div>`);
 }
 window.showCoordReview=showCoordReview;
