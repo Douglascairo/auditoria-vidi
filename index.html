@@ -1785,11 +1785,13 @@ async function showCoordDashboard(){
   </div>`:'';
 
   const fByLoja={};(forms||[]).forEach(f=>fByLoja[f.loja_id]=f);
-  const supStats={};(sups||[]).forEach(s=>{supStats[s.id]={nome:s.nome,lojas:0,enviados:0,revisados:0,atrasados:0,scores:[]};});
+  const supStats={};(sups||[]).forEach(s=>{supStats[s.id]={nome:s.nome,lojas:0,enviados:0,emAjuste:0,reenviado:0,revisados:0,atrasados:0,scores:[]};});
   (lojas||[]).forEach(l=>{if(supStats[l.supervisora_id])supStats[l.supervisora_id].lojas++;});
   (forms||[]).forEach(f=>{
     const s=supStats[f.supervisora_id];if(!s)return;
     if(f.status!=='rascunho')s.enviados++;
+    if(f.status==='ajustes_solicitados')s.emAjuste++;
+    if(f.status==='reenviado')s.reenviado++;
     if(f.status==='revisado')s.revisados++;
     if(f.is_late)s.atrasados++;
     if(f.score>0)s.scores.push(f.score);
@@ -1807,6 +1809,8 @@ async function showCoordDashboard(){
       <td><strong>${s.nome}</strong></td>
       <td style="text-align:center">${s.lojas}</td>
       <td style="text-align:center">${s.enviados}</td>
+      <td style="text-align:center;color:#9a3412;font-weight:600">${s.emAjuste||'—'}</td>
+      <td style="text-align:center;color:#1e40af;font-weight:600">${s.reenviado||'—'}</td>
       <td style="text-align:center;color:#15803d;font-weight:600">${s.revisados}</td>
       <td style="text-align:center;color:${s.atrasados?'var(--er)':'var(--ok)'}">${s.atrasados}</td>
       <td style="text-align:center;font-weight:700;color:${avg>=80?'#15803d':avg>=60?'#d97706':'#dc2626'}">${avg?avg.toFixed(1):'—'}</td>
@@ -1860,7 +1864,7 @@ async function showCoordDashboard(){
     <div class="card">
       <div class="card-title">👥 Performance por supervisora</div>
       <div style="overflow-x:auto">
-        <table class="tbl"><thead><tr><th>Supervisora</th><th>Lojas</th><th>Enviados</th><th>Revisados</th><th>Atrasos</th><th>Score Médio</th><th>Cobertura</th></tr></thead>
+        <table class="tbl"><thead><tr><th>Supervisora</th><th>Lojas</th><th>Enviados</th><th>Em ajuste</th><th>Reenviados</th><th>Revisados</th><th>Atrasos</th><th>Score Médio</th><th>Cobertura</th></tr></thead>
         <tbody>${supRows}</tbody></table>
       </div>
     </div>
