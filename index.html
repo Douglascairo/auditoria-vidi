@@ -1379,7 +1379,8 @@ async function showSupReview(formId){
     ${form.status==='revisado'?`<div class="card" style="text-align:center;background:#f0fdf4;border-color:#86efac"><div style="font-size:18px">✅</div><div style="font-size:13px;font-weight:600;color:#15803d">Revisão concluída</div><div class="txt-sm">em ${form.review_end?new Date(form.review_end).toLocaleString('pt-BR'):'—'}</div></div>`
     :form.status==='ajustes_solicitados'?`<div class="card" style="text-align:center;background:#fff7ed;border-color:#fdba74"><div style="font-size:18px">🔧</div><div style="font-size:13px;font-weight:600;color:#9a3412">Ajustes solicitados</div><div class="txt-sm">Aguardando a gerente corrigir e reenviar.</div></div>`
     :`<div style="margin-top:16px">
-      <button class="btn btn-prim" style="width:100%;font-size:15px;padding:14px;background:#15803d" onclick="finalizarConferencia('${formId}')">✅ Finalizar conferência</button>
+      <button class="btn btn-prim" style="width:100%;font-size:15px;padding:14px;background:#15803d" onclick="approveReview('${formId}')">✅ Finalizar conferência (aprovar e concluir)</button>
+      <button class="btn" style="width:100%;margin-top:8px;background:#fed7aa;color:#9a3412" onclick="requestAdjustments('${formId}')">🔧 Solicitar ajustes à gerente</button>
       <button class="btn btn-sec" style="width:100%;margin-top:8px" onclick="showSupHome()">← Voltar sem finalizar</button>
     </div>`}
   </div>`);
@@ -2013,7 +2014,8 @@ async function showCoordReview(formId){
     ${form.status==='revisado'?`<div class="card" style="text-align:center;background:#f0fdf4;border-color:#86efac;margin-top:8px"><div style="font-size:18px">✅</div><div style="font-size:13px;font-weight:600;color:#15803d">Revisão concluída</div><div class="txt-sm">em ${form.review_end?new Date(form.review_end).toLocaleString('pt-BR'):'—'}</div></div>`
     :form.status==='ajustes_solicitados'?`<div class="card" style="text-align:center;background:#fff7ed;border-color:#fdba74;margin-top:8px"><div style="font-size:18px">🔧</div><div style="font-size:13px;font-weight:600;color:#9a3412">Ajustes solicitados</div><div class="txt-sm">Aguardando a gerente corrigir e reenviar.</div></div>`
     :(form.status==='enviado'||form.status==='reenviado')?`<div style="margin-top:16px">
-      <button class="btn btn-prim" style="width:100%;font-size:15px;padding:14px;background:#15803d" onclick="finalizarConferencia('${formId}')">✅ Finalizar conferência</button>
+      <button class="btn btn-prim" style="width:100%;font-size:15px;padding:14px;background:#15803d" onclick="approveReview('${formId}')">✅ Finalizar conferência (aprovar e concluir)</button>
+      <button class="btn" style="width:100%;margin-top:8px;background:#fed7aa;color:#9a3412" onclick="requestAdjustments('${formId}')">🔧 Solicitar ajustes à gerente</button>
       <button class="btn btn-sec" style="width:100%;margin-top:8px" onclick="showCoordDashboard()">← Voltar sem finalizar</button>
     </div>`:`<button class="btn btn-sec" style="width:100%;margin-top:8px" onclick="showCoordDashboard()">← Voltar ao dashboard</button>`}
   </div>`);
