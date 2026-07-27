@@ -1841,7 +1841,7 @@ async function showCoordDashboard(){
       <td><strong>${l.nome}</strong><br><span class="txt-sm">${l.cidade}/${l.estado}</span></td>
       <td class="txt-sm">${l.supervisoras?.nome||'—'}</td>
       <td>${statusChip}</td>
-      ${f?`<td style="text-align:center">${f.is_late?`<span class="chip chip-late">${f.dias_atraso}d</span>`:'✓'}</td><td>${`<button class="btn btn-sec btn-sm" onclick="showCoordReview('${f.id}')">Ver →</button>`}</td>`:'<td></td><td></td>'}
+      ${f?`<td style="text-align:center">${f.is_late?`<span class="chip chip-late">${f.dias_atraso}d</span>`:'✓'}</td><td><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-sec btn-sm" onclick="showCoordReview('${f.id}')">Ver →</button><button class="btn btn-sm" style="background:#dc2626;color:#fff" onclick="apagarFotosLoja('${f.id}','dashboard')" title="Apagar fotos desta loja">🗑</button></div></td>`:'<td></td><td></td>'}
     </tr>`;}).join('');
 
   render(`<div class="main">
@@ -1892,14 +1892,14 @@ async function apagarTodasFotos(){
 window.apagarTodasFotos=apagarTodasFotos;
 
 // Apaga as fotos de UMA loja/formulário (botão dentro da revisão)
-async function apagarFotosLoja(formId){
+async function apagarFotosLoja(formId, voltar){
   const {data:fts,error}=await sb.from('fotos').select('id,storage_path').eq('formulario_id',formId);
   if(error){alert('Erro ao buscar fotos: '+error.message);return;}
   if(!fts||!fts.length){alert('Esta loja não tem fotos para apagar.');return;}
   if(!confirm(`Apagar as ${fts.length} foto(s) desta loja?\n\nAs respostas e comentários continuam salvos — só as fotos são removidas.`))return;
   await removerFotos(fts);
   alert(`✅ ${fts.length} foto(s) desta loja removidas!`);
-  showCoordReview(formId);
+  if(voltar==='dashboard')showCoordDashboard(); else showCoordReview(formId);
 }
 window.apagarFotosLoja=apagarFotosLoja;
 
