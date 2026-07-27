@@ -1768,19 +1768,19 @@ async function showCoordDashboard(){
   const {data:lojas}=await sb.from('lojas').select('*,supervisoras(nome)');
   const {data:forms}=await sb.from('formularios').select('*').eq('ciclo',CICLO.n);
 
-  // Conta fotos de ciclos anteriores (para o aviso de limpeza)
-  let nFotosAntigas=0;
+  // Conta TODAS as fotos (para o botão de apagar geral)
+  let nFotosTotal=0;
   try{
-    const {data:fa}=await sb.from('fotos').select('id,formularios!inner(ciclo)').lt('formularios.ciclo',CICLO.n);
-    nFotosAntigas=(fa||[]).length;
+    const {count}=await sb.from('fotos').select('id',{count:'exact',head:true});
+    nFotosTotal=count||0;
   }catch(e){}
-  const limpezaHtml=nFotosAntigas>0?`<div class="card" style="border-color:#fdba74;background:#fff7ed;margin-bottom:10px">
+  const limpezaHtml=nFotosTotal>0?`<div class="card" style="border-color:#fdba74;background:#fff7ed;margin-bottom:10px">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
       <div>
-        <div style="font-weight:700;color:#9a3412">🗑 ${nFotosAntigas} foto(s) de ciclos anteriores</div>
-        <div class="txt-sm">Ocupam ~${(nFotosAntigas*0.2).toFixed(0)} MB. Limpe ao iniciar o novo ciclo para manter o espaço livre e evitar bloqueios.</div>
+        <div style="font-weight:700;color:#9a3412">🗑 ${nFotosTotal} foto(s) armazenadas</div>
+        <div class="txt-sm">Ocupam ~${(nFotosTotal*0.2).toFixed(0)} MB. Apague depois de conferir as revisões — mantém respostas e histórico.</div>
       </div>
-      <button class="btn" style="background:#ea580c;color:#fff" onclick="limparFotosAntigas()">Limpar agora</button>
+      <button class="btn" style="background:#dc2626;color:#fff" onclick="apagarTodasFotos()">Apagar todas as fotos</button>
     </div>
   </div>`:'';
 
@@ -1878,27 +1878,43 @@ async function showCoordDashboard(){
 // =====================================================
 // LIMPEZA DE FOTOS DE CICLOS ANTERIORES
 // =====================================================
-async function limparFotosAntigas(){
-  const {data:antigas,error}=await sb.from('fotos').select('id,storage_path,formularios!inner(ciclo)').lt('formularios.ciclo',CICLO.n);
+// Apaga TODAS as fotos (botão do topo do painel)
+async function apagarTodasFotos(){
+  const {data:todas,error}=await sb.from('fotos').select('id,storage_path');
   if(error){alert('Erro ao buscar fotos: '+error.message);return;}
-  if(!antigas||!antigas.length){alert('Não há fotos de ciclos anteriores para limpar. 👍');return;}
-  const mb=(antigas.length*0.2).toFixed(0);
-  if(!confirm(`Isso vai apagar ${antigas.length} foto(s) de ciclos anteriores (libera ~${mb} MB).\n\nOs formulários e as notas continuam salvos — só as fotos antigas são removidas.\n\nContinuar?`))return;
-  // 1. Remove os arquivos do Storage (em lotes de 100)
-  const paths=antigas.map(f=>f.storage_path).filter(Boolean);
+  if(!todas||!todas.length){alert('Não há fotos para apagar. 👍');return;}
+  const mb=(todas.length*0.2).toFixed(0);
+  if(!confirm(`Isso vai apagar TODAS as ${todas.length} foto(s) de todas as lojas (libera ~${mb} MB).\n\nAs respostas, notas e comentários continuam salvos — só as fotos são removidas.\n\nConfirma?`))return;
+  await removerFotos(todas);
+  alert(`✅ ${todas.length} foto(s) removidas — espaço liberado!`);
+  showCoordDashboard();
+}
+window.apagarTodasFotos=apagarTodasFotos;
+
+// Apaga as fotos de UMA loja/formulário (botão dentro da revisão)
+async function apagarFotosLoja(formId){
+  const {data:fts,error}=await sb.from('fotos').select('id,storage_path').eq('formulario_id',formId);
+  if(error){alert('Erro ao buscar fotos: '+error.message);return;}
+  if(!fts||!fts.length){alert('Esta loja não tem fotos para apagar.');return;}
+  if(!confirm(`Apagar as ${fts.length} foto(s) desta loja?\n\nAs respostas e comentários continuam salvos — só as fotos são removidas.`))return;
+  await removerFotos(fts);
+  alert(`✅ ${fts.length} foto(s) desta loja removidas!`);
+  showCoordReview(formId);
+}
+window.apagarFotosLoja=apagarFotosLoja;
+
+// Helper: remove do Storage + tabela, em lotes
+async function removerFotos(lista){
+  const paths=lista.map(f=>f.storage_path).filter(Boolean);
   for(let i=0;i<paths.length;i+=100){
     const {error:e}=await sb.storage.from('auditoria-fotos').remove(paths.slice(i,i+100));
     if(e)console.warn('Falha ao remover lote do storage:',e.message);
   }
-  // 2. Remove as linhas da tabela (em lotes de 200)
-  const ids=antigas.map(f=>f.id);
+  const ids=lista.map(f=>f.id);
   for(let i=0;i<ids.length;i+=200){
     await sb.from('fotos').delete().in('id',ids.slice(i,i+200));
   }
-  alert(`✅ ${antigas.length} foto(s) antigas removidas — espaço liberado!`);
-  showCoordDashboard();
 }
-window.limparFotosAntigas=limparFotosAntigas;
 
 // =====================================================
 // COORDENADOR — VER FORMULÁRIO DE LOJA
@@ -1984,6 +2000,12 @@ async function showCoordReview(formId){
     ${comentariosHtml}
     ${ausentesHtml}
     ${secsHtml}
+    <div class="card" style="margin-top:8px;border-color:#fca5a5;background:#fff5f5">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <div class="txt-sm" style="color:#991b1b">🗑 Já conferiu a revisão desta loja? Apague as fotos para liberar espaço (respostas e comentários ficam salvos).</div>
+        <button class="btn" style="background:#dc2626;color:#fff" onclick="apagarFotosLoja('${formId}')">Apagar fotos desta loja</button>
+      </div>
+    </div>
     ${form.status==='revisado'?`<div class="card" style="text-align:center;background:#f0fdf4;border-color:#86efac;margin-top:8px"><div style="font-size:18px">✅</div><div style="font-size:13px;font-weight:600;color:#15803d">Revisão concluída</div><div class="txt-sm">em ${form.review_end?new Date(form.review_end).toLocaleString('pt-BR'):'—'}</div></div>`
     :form.status==='ajustes_solicitados'?`<div class="card" style="text-align:center;background:#fff7ed;border-color:#fdba74;margin-top:8px"><div style="font-size:18px">🔧</div><div style="font-size:13px;font-weight:600;color:#9a3412">Ajustes solicitados</div><div class="txt-sm">Aguardando a gerente corrigir e reenviar.</div></div>`
     :(form.status==='enviado'||form.status==='reenviado')?`<div style="margin-top:16px">
