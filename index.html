@@ -750,6 +750,7 @@ async function showGerenteHome(){
       <div class="card-title">📋 Minhas lojas — ${cicloLabel()}</div>
       ${lojaCards}
     </div>
+    <button class="btn btn-sec" style="width:100%;margin-bottom:10px" onclick="showAusenciasHistorico()">📊 Histórico de ausências na troca de ciclo</button>
     ${forms.filter(f=>f.status==='revisado').length?`<div class="card">
       <div class="card-title">💬 Feedbacks da supervisora</div>
       ${forms.filter(f=>f.status==='revisado').map(f=>{
@@ -1238,6 +1239,7 @@ async function showSupHome(){
         <div class="sum-card"><div class="sum-val" style="color:#15803d">${revisado}</div><div class="sum-lbl">concluídos</div></div>
       </div>
     </div>
+    <button class="btn btn-sec" style="width:100%;margin-bottom:10px" onclick="showAusenciasHistorico()">📊 Histórico de ausências na troca de ciclo</button>
     <div class="card">
       ${(lojas||[]).length===0?`<div style="text-align:center;padding:20px;font-size:13px;color:var(--mu)">Nenhuma loja atribuída.</div>`
       :(lojas||[]).map(l=>{
@@ -1851,6 +1853,7 @@ async function showCoordDashboard(){
 
   render(`<div class="main">
     ${limpezaHtml}
+    <button class="btn btn-sec" style="width:100%;margin-bottom:10px" onclick="showAusenciasHistorico()">📊 Histórico de ausências na troca de ciclo</button>
     <div class="card">
       <div class="card-title">🎯 Dashboard Coordenação — ${cicloLabel()}</div>
       <div class="sum-grid">
@@ -1879,6 +1882,70 @@ async function showCoordDashboard(){
     </div>
   </div>`);
 }
+
+// =====================================================
+// HISTÓRICO DE AUSÊNCIAS NA TROCA DE CICLO (todos os ciclos)
+// =====================================================
+async function showAusenciasHistorico(){
+  render(`<div class="main"><div class="card" style="text-align:center;padding:30px;color:var(--mu)">Carregando…</div></div>`);
+  const role=APP.profile.role;
+  const voltar = role==='coordenador'?'showCoordDashboard()':role==='supervisora'?'showSupHome()':'showGerenteHome()';
+
+  const {data:aus,error}=await sb.from('ausencias_ciclo')
+    .select('nome_colaborador,motivo,formularios!inner(ciclo,loja_id,supervisora_id,gerente_id,lojas(nome))');
+  if(error){
+    render(`<div class="main"><button class="btn btn-sec btn-sm" style="margin-bottom:10px" onclick="${voltar}">← Voltar</button><div class="card">Erro ao carregar: ${error.message}</div></div>`);
+    return;
+  }
+
+  // Filtra pelo escopo do perfil
+  const permitido=(aus||[]).filter(a=>{
+    const f=a.formularios;if(!f)return false;
+    if(role==='coordenador')return true;
+    if(role==='supervisora')return f.supervisora_id===APP.profile.supervisora_id;
+    return APP.profile.loja_id ? f.loja_id===APP.profile.loja_id : false; // gerente
+  });
+
+  // Agrupa por pessoa + loja
+  const norm=n=>(n||'').toLowerCase().trim().replace(/\s+/g,' ');
+  const titleCase=n=>(n||'').replace(/\b\w/g,l=>l.toUpperCase());
+  const map={};
+  permitido.forEach(a=>{
+    const key=norm(a.nome_colaborador)+'|'+(a.formularios.loja_id||'');
+    if(!map[key])map[key]={nome:titleCase(a.nome_colaborador),loja:a.formularios.lojas?.nome||'—',total:0,det:[]};
+    map[key].total++;
+    map[key].det.push({ciclo:a.formularios.ciclo,motivo:a.motivo||'—'});
+  });
+  const lista=Object.values(map).sort((a,b)=>b.total-a.total||a.nome.localeCompare(b.nome));
+
+  const linhas=lista.length? lista.map(p=>{
+    const cor=p.total>=3?'#dc2626':p.total===2?'#d97706':'#334155';
+    const det=p.det.sort((a,b)=>(a.ciclo||0)-(b.ciclo||0))
+      .map(d=>`<span class="chip" style="background:#f1f5f9;color:#475569;font-weight:500">Ciclo ${d.ciclo||'?'}: ${d.motivo}</span>`).join(' ');
+    return`<div style="padding:11px 0;border-bottom:1px solid var(--br)">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <div>
+          <span style="font-weight:700">${p.nome}</span>
+          <span class="txt-sm"> — ${p.loja}</span>
+        </div>
+        <span class="chip" style="background:${cor};color:#fff;font-weight:700">${p.total} falta(s)</span>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${det}</div>
+    </div>`;
+  }).join('') : `<div style="text-align:center;padding:20px;font-size:13px;color:var(--mu)">Nenhuma ausência registrada até o momento. 👍</div>`;
+
+  const reincidentes=lista.filter(p=>p.total>=2).length;
+
+  render(`<div class="main">
+    <button class="btn btn-sec btn-sm" style="margin-bottom:10px" onclick="${voltar}">← Voltar</button>
+    <div class="card">
+      <div class="card-title" style="color:#991b1b">📊 Histórico de ausências na troca de ciclo</div>
+      <div class="txt-sm" style="margin-bottom:10px">Acumulado de todos os ciclos desde o início da ferramenta. ${reincidentes?`<strong style="color:#991b1b">${reincidentes} pessoa(s) com 2+ faltas.</strong>`:''}</div>
+      ${linhas}
+    </div>
+  </div>`);
+}
+window.showAusenciasHistorico=showAusenciasHistorico;
 
 // =====================================================
 // LIMPEZA DE FOTOS DE CICLOS ANTERIORES
