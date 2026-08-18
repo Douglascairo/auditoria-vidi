@@ -1490,8 +1490,24 @@ async function approveReview(formId){
     formId);
 
   APP.reviewStart=null;
-  alert('✅ Revisão concluída! A gerente foi notificada.');
-  await showSupHome();
+
+  // Tela de parabéns + convite para apagar as fotos da loja revisada
+  const home = APP.profile.role==='coordenador'?'showCoordDashboard()':'showSupHome()';
+  const {count:nFotos}=await sb.from('fotos').select('id',{count:'exact',head:true}).eq('formulario_id',formId);
+  render(`<div class="main">
+    <div class="card" style="text-align:center;background:#f0fdf4;border-color:#86efac">
+      <div style="font-size:44px">🎉</div>
+      <div style="font-size:18px;font-weight:800;color:#15803d;margin-top:4px">Parabéns! Conferência finalizada!</div>
+      <div class="txt-sm" style="margin-top:6px">Você concluiu a revisão da loja <strong>${loja?.nome||''}</strong>.<br>A gerente já foi notificada. 👏</div>
+    </div>
+    ${(nFotos||0)>0?`<div class="card" style="background:#fff7ed;border-color:#fdba74;margin-top:10px;text-align:center">
+      <div style="font-size:15px;font-weight:700;color:#9a3412">📸 Deixe o app mais leve!</div>
+      <div class="txt-sm" style="margin:6px 0 12px">Agora que você já conferiu tudo, apague as ${nFotos} foto(s) desta loja para liberar espaço. As respostas e comentários continuam salvos.</div>
+      <button class="btn" style="width:100%;background:#dc2626;color:#fff;font-size:15px;padding:14px" onclick="apagarFotosLoja('${formId}','home')">🗑 Clique aqui para apagar as fotos desta loja</button>
+      <button class="btn btn-sec" style="width:100%;margin-top:8px" onclick="${home}">Agora não — voltar ao início</button>
+    </div>`:`<button class="btn btn-prim" style="width:100%;margin-top:10px" onclick="${home}">← Voltar ao início</button>`}
+  </div>`);
+  return;
 }
 window.approveReview=approveReview;
 
@@ -1970,8 +1986,10 @@ async function apagarFotosLoja(formId, voltar){
   if(!fts||!fts.length){alert('Esta loja não tem fotos para apagar.');return;}
   if(!confirm(`Apagar as ${fts.length} foto(s) desta loja?\n\nAs respostas e comentários continuam salvos — só as fotos são removidas.`))return;
   await removerFotos(fts);
-  alert(`✅ ${fts.length} foto(s) desta loja removidas!`);
-  if(voltar==='dashboard')showCoordDashboard(); else showCoordReview(formId);
+  alert(`✅ ${fts.length} foto(s) desta loja removidas! Obrigado por deixar o app mais leve. 💚`);
+  if(voltar==='dashboard')showCoordDashboard();
+  else if(voltar==='home'){APP.profile.role==='coordenador'?showCoordDashboard():showSupHome();}
+  else showCoordReview(formId);
 }
 window.apagarFotosLoja=apagarFotosLoja;
 
