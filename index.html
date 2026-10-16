@@ -660,13 +660,17 @@ function openPhoto(url){
     ov=document.createElement('div');
     ov.id='photo-lightbox';
     ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9999;display:none;align-items:center;justify-content:center;overflow:hidden;touch-action:none';
+    const navBtn='width:48px;height:48px;border-radius:50%;border:none;background:rgba(255,255,255,.92);font-size:28px;font-weight:700;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center';
     ov.innerHTML=`<img id="plb-img" style="max-width:95vw;max-height:90vh;object-fit:contain;transform-origin:center;user-select:none;-webkit-user-drag:none;cursor:zoom-in">
+      <button id="plb-prev" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);${navBtn}">‹</button>
+      <button id="plb-next" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);${navBtn}">›</button>
+      <div id="plb-count" style="position:absolute;top:16px;left:0;right:0;text-align:center;color:#fff;font-size:13px;font-weight:600;opacity:.85"></div>
       <div style="position:absolute;top:14px;right:16px;display:flex;gap:8px">
         <button id="plb-out" style="width:44px;height:44px;border-radius:8px;border:none;background:rgba(255,255,255,.92);font-size:26px;font-weight:700;cursor:pointer">−</button>
         <button id="plb-in" style="width:44px;height:44px;border-radius:8px;border:none;background:rgba(255,255,255,.92);font-size:26px;font-weight:700;cursor:pointer">+</button>
         <button id="plb-close" style="width:44px;height:44px;border-radius:8px;border:none;background:rgba(255,255,255,.92);font-size:20px;cursor:pointer">✕</button>
       </div>
-      <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#fff;font-size:12px;opacity:.65">🔍 Role o mouse ou use + / − para dar zoom · arraste para mover · ✕ fecha</div>`;
+      <div style="position:absolute;bottom:12px;left:0;right:0;text-align:center;color:#fff;font-size:12px;opacity:.65">🔍 Role o mouse ou use + / − para zoom · arraste para mover · ← → troca de foto · ✕ fecha</div>`;
     document.body.appendChild(ov);
     const img=ov.querySelector('#plb-img');
     const apply=()=>{
@@ -676,21 +680,47 @@ function openPhoto(url){
       img.style.cursor=(ov._s>1)?'grab':'zoom-in';
     };
     ov._apply=apply;
+    // Troca de foto mantendo o visualizador aberto (zera o zoom a cada foto)
+    const show=(i)=>{
+      const g=ov._gallery||[];
+      if(!g.length)return;
+      ov._idx=((i%g.length)+g.length)%g.length;
+      ov._s=1;ov._tx=0;ov._ty=0;
+      img.src=g[ov._idx];
+      apply();
+      const multi=g.length>1;
+      ov.querySelector('#plb-count').textContent=multi?`${ov._idx+1} / ${g.length}`:'';
+      ov.querySelector('#plb-prev').style.display=multi?'flex':'none';
+      ov.querySelector('#plb-next').style.display=multi?'flex':'none';
+    };
+    ov._show=show;
+    ov.querySelector('#plb-prev').onclick=e=>{e.stopPropagation();show((ov._idx||0)-1);};
+    ov.querySelector('#plb-next').onclick=e=>{e.stopPropagation();show((ov._idx||0)+1);};
     ov.querySelector('#plb-in').onclick=e=>{e.stopPropagation();ov._s=(ov._s||1)+0.5;apply();};
     ov.querySelector('#plb-out').onclick=e=>{e.stopPropagation();ov._s=(ov._s||1)-0.5;apply();};
     ov.querySelector('#plb-close').onclick=e=>{e.stopPropagation();ov.style.display='none';};
-    img.onclick=e=>{e.stopPropagation();ov._s=((ov._s||1)>1)?1:2.5;apply();};
+    // clique na imagem: alterna zoom — mas ignora se acabou de arrastar (senão o zoom "some")
+    img.onclick=e=>{e.stopPropagation();if(ov._moved){ov._moved=false;return;}ov._s=((ov._s||1)>1)?1:2.5;apply();};
     img.onwheel=e=>{e.preventDefault();ov._s=(ov._s||1)+(e.deltaY<0?0.4:-0.4);apply();};
-    img.onmousedown=e=>{if((ov._s||1)<=1)return;e.preventDefault();ov._drag=true;ov._sx=e.clientX-(ov._tx||0);ov._sy=e.clientY-(ov._ty||0);img.style.cursor='grabbing';};
-    window.addEventListener('mousemove',e=>{if(!ov._drag)return;ov._tx=e.clientX-ov._sx;ov._ty=e.clientY-ov._sy;apply();});
+    img.onmousedown=e=>{ov._moved=false;if((ov._s||1)<=1)return;e.preventDefault();ov._drag=true;ov._sx=e.clientX-(ov._tx||0);ov._sy=e.clientY-(ov._ty||0);ov._dx=e.clientX;ov._dy=e.clientY;img.style.cursor='grabbing';};
+    window.addEventListener('mousemove',e=>{if(!ov._drag)return;if(Math.abs(e.clientX-ov._dx)+Math.abs(e.clientY-ov._dy)>4)ov._moved=true;ov._tx=e.clientX-ov._sx;ov._ty=e.clientY-ov._sy;apply();});
     window.addEventListener('mouseup',()=>{if(ov._drag){ov._drag=false;apply();}});
+    window.addEventListener('keydown',e=>{
+      if(ov.style.display==='none')return;
+      if(e.key==='ArrowLeft')show((ov._idx||0)-1);
+      else if(e.key==='ArrowRight')show((ov._idx||0)+1);
+      else if(e.key==='Escape')ov.style.display='none';
+    });
     ov.onclick=e=>{if(e.target===ov)ov.style.display='none';};
   }
-  // novo photo: zera o zoom
-  ov._s=1;ov._tx=0;ov._ty=0;
-  ov.querySelector('#plb-img').src=url;
-  ov._apply();
+  // Monta a galeria com todas as fotos visíveis na tela (ordem do DOM)
+  const gallery=Array.from(document.querySelectorAll('.ph-thumb img')).map(im=>im.src);
+  let idx=gallery.indexOf(url);
+  if(idx<0)idx=gallery.findIndex(s=>s.split('?')[0]===url.split('?')[0]);
+  if(idx<0){gallery.length=0;gallery.push(url);idx=0;}
+  ov._gallery=gallery;
   ov.style.display='flex';
+  ov._show(idx);
 }
 window.openPhoto=openPhoto;
 
